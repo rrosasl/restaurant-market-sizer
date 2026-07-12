@@ -23,6 +23,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from estimator import derive_assumptions, place_summary
 from model import (
     Assumption,
     deterministic_cases,
@@ -31,6 +32,7 @@ from model import (
     summary_stats,
     tornado_data,
 )
+from places import DEMO_PLACES, search_places
 
 st.set_page_config(page_title="Restaurant Market Sizer", page_icon="🍽️", layout="wide")
 
@@ -51,13 +53,25 @@ QUESTIONS = {
 
 # ------------------------------------------------------------------- state
 
+def _secret_api_key() -> str:
+    """Google Maps key from st.secrets, if the deployment configured one."""
+    try:
+        return st.secrets.get("GOOGLE_MAPS_API_KEY", "")
+    except Exception:  # no secrets.toml at all
+        return ""
+
+
 def init_state():
     ss = st.session_state
     ss.setdefault("step", 1)
+    ss.setdefault("fill_mode", "Fill them in myself")
+    ss.setdefault("maps_results", [])
+    ss.setdefault("derived", None)
     if "data" not in ss:
         d = {"concept": "Arepa restaurant in Barcelona", "unit_name": "arepas",
              "currency": "EUR", "price_sensitivity": "Moderate", "demand_linked": True,
-             "n_sims": 50_000, "seed": 42}
+             "n_sims": 50_000, "seed": 42,
+             "api_key": _secret_api_key(), "maps_query": "arepas Barcelona", "place_age": 5.0}
         for name, (_, _, lo, md, hi) in QUESTIONS.items():
             d[f"{name}_low"], d[f"{name}_mode"], d[f"{name}_high"] = float(lo), float(md), float(hi)
         ss.data = d
@@ -213,8 +227,10 @@ st.title("🍽️ Restaurant Market Sizer")
 st.caption("Answer a few questions about your restaurant, and a Monte Carlo simulation "
            "estimates your realistic annual revenue range — and what drives it most.")
 
-steps = ["1 · Your restaurant", "2 · Your numbers", "3 · Follow-ups", "4 · Report"]
-st.progress((ss.step - 1) / 3, text=steps[ss.step - 1])
+STEP_LABELS = {1: "1 · Your restaurant", 1.5: "2 · Auto-fill from Google Maps",
+               2: "3 · Your numbers", 3: "4 · Follow-ups", 4: "5 · Report"}
+STEP_PROGRESS = {1: 0.0, 1.5: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
+st.progress(STEP_PROGRESS[ss.step], text=STEP_LABELS[ss.step])
 
 if ss.step == 1:
     st.subheader("Tell us about the restaurant")
@@ -226,7 +242,85 @@ if ss.step == 1:
     currencies = ["EUR", "USD", "GBP"]
     st.selectbox("Currency", currencies, index=currencies.index(d["currency"]),
                  key="w_currency", on_change=partial(save, "currency"))
-    st.button("Next →", type="primary", on_click=goto, args=(2,))
+    fill_options = ["Fill them in myself", "Auto-fill from Google Maps"]
+    st.radio("How do you want to set the numbers?", fill_options,
+             index=fill_options.index(ss.fill_mode), key="w_fill_mode",
+             on_change=lambda: ss.update(fill_mode=ss.w_fill_mode), horizontal=True,
+             help="Auto-fill looks up a real place (yours or a comparable one) and derives "
+                  "starting estimates from its opening hours, price level, and review count. "
+                  "You review and edit everything before simulating.")
+    st.button("Next →", type="primary",
+              on_click=lambda: goto(1.5 if ss.w_fill_mode == "Auto-fill from Google Maps" else 2))
+
+elif ss.step == 1.5:
+    st.subheader("Find the place on Google Maps")
+    st.markdown(":gray[Search for your restaurant — or a comparable one nearby — and we'll derive "
+                "starting estimates from its public Google Maps data (opening hours, price level, "
+                "review count). Menu prices and hour-by-hour busyness aren't in Google's public "
+                "API, so those are estimated and clearly labeled.]")
+
+    demo = st.toggle("Demo mode (use sample data, no API key needed)",
+                     value=not d["api_key"])
+    if not demo:
+        st.text_input("Google Maps API key", value=d["api_key"], key="w_api_key",
+                      on_change=partial(save, "api_key"), type="password",
+                      help="Create one at console.cloud.google.com → APIs & Services → enable "
+                           "'Places API (New)' → Credentials. The key is only sent to Google and "
+                           "is not stored anywhere. For a deployed app, put it in st.secrets.")
+    st.text_input("Search Google Maps", value=d["maps_query"], key="w_maps_query",
+                  on_change=partial(save, "maps_query"),
+                  placeholder="e.g. arepas Barcelona, or the restaurant's name")
+
+    if st.button("🔍 Search", type="primary"):
+        if demo:
+            ss.maps_results = DEMO_PLACES
+        else:
+            try:
+                with st.spinner("Searching Google Maps..."):
+                    ss.maps_results = search_places(d["maps_query"], d["api_key"])
+            except Exception as e:
+                st.error(str(e))
+                ss.maps_results = []
+        ss.derived = None
+        if not ss.maps_results:
+            st.warning("No results — try a broader search.")
+
+    if ss.maps_results:
+        labels_ = [place_summary(p) for p in ss.maps_results]
+        pick = st.radio("Pick the closest match", range(len(labels_)),
+                        format_func=lambda i: labels_[i])
+        st.slider("Roughly how many years has this place been open?",
+                  0.5, 20.0, value=d["place_age"], step=0.5, key="w_place_age",
+                  on_change=partial(save, "place_age"),
+                  help="Needed to turn the total review count into reviews-per-year, "
+                       "our proxy for customer traffic.")
+        if st.button("Derive assumptions from this place ✨"):
+            ss.derived = derive_assumptions(ss.maps_results[pick], d["place_age"])
+
+    if ss.derived:
+        st.subheader("Derived assumptions — check the reasoning")
+        rows = []
+        for name, (template, _, *_r) in QUESTIONS.items():
+            der = ss.derived[name]
+            rows.append({
+                "Input": template.format(U="Units", C=d["currency"]),
+                "Pessimistic": der.low, "Most likely": der.mode, "Optimistic": der.high,
+                "Source": "Google Maps" if der.from_data else "generic default",
+                "How it was derived": der.rationale,
+            })
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+        st.info("Traffic derived this way counts **customer orders**, not individual items — "
+                "so 'price' should be read as the average ticket per order. Review and adjust "
+                "everything on the next screen.")
+        if st.button("Use these values →", type="primary"):
+            for name, der in ss.derived.items():
+                d[f"{name}_low"], d[f"{name}_mode"], d[f"{name}_high"] = \
+                    float(der.low), float(der.mode), float(der.high)
+            d["unit_name"] = "orders"
+            goto(2)
+            st.rerun()
+
+    st.button("← Back", on_click=goto, args=(1,))
 
 elif ss.step == 2:
     st.subheader("Give three estimates for each number")
@@ -237,7 +331,8 @@ elif ss.step == 2:
         three_point_row(name, label, help_text)
         st.divider()
     c1, c2 = st.columns([1, 5])
-    c1.button("← Back", on_click=goto, args=(1,))
+    back_target = 1.5 if ss.fill_mode == "Auto-fill from Google Maps" else 1
+    c1.button("← Back", on_click=goto, args=(back_target,))
     c2.button("Next →", type="primary", on_click=goto, args=(3,))
 
 elif ss.step == 3:
@@ -311,12 +406,12 @@ elif ss.step == 4:
     f5 = fig_exceedance(sims, cur)
 
     c1, c2 = st.columns(2)
-    c1.plotly_chart(f1, use_container_width=True)
-    c2.plotly_chart(f2, use_container_width=True)
+    c1.plotly_chart(f1, width="stretch")
+    c2.plotly_chart(f2, width="stretch")
     c3, c4 = st.columns(2)
-    c3.plotly_chart(f3, use_container_width=True)
-    c4.plotly_chart(f4, use_container_width=True)
-    st.plotly_chart(f5, use_container_width=True)
+    c3.plotly_chart(f3, width="stretch")
+    c4.plotly_chart(f4, width="stretch")
+    st.plotly_chart(f5, width="stretch")
 
     st.subheader("Sanity check — do these implied numbers feel right?")
     per_day_units = (sims["revenue"] / (sims["days_year"] * sims["price"])).median()

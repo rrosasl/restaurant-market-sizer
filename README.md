@@ -18,6 +18,15 @@ python3 -m venv .venv
 1. **Questionnaire** — asks for the restaurant concept, what you sell, and
    pessimistic / most likely / optimistic estimates for six inputs (demand at
    peak and off-peak, opening hours, peak hours, days open, price).
+   Or, **auto-fill from Google Maps**: search a real place (yours or a
+   comparable one) and derive starting estimates from its public data —
+   opening hours and days from the schedule, price from Google's €-€€€€
+   price level, and demand from review velocity (reviews/year ÷ assumed
+   review rate). Every derived number shows its reasoning and stays editable.
+   Requires a Google Maps API key with "Places API (New)" enabled (there's a
+   demo mode with sample data to try the flow without one). Menu prices and
+   hour-by-hour busyness are not exposed by Google's public API, so those
+   remain estimates.
 2. **Follow-ups** — flags inconsistent answers (e.g. peak hours exceeding opening
    hours) and asks about price sensitivity to link price and demand in the simulation.
 3. **Report** — simulated revenue distribution with P10/median/P90, deterministic
@@ -42,3 +51,11 @@ python3 -m venv .venv
 
 - `model.py` — simulation engine (pure functions, no UI). Start here to understand the math.
 - `app.py` — Streamlit questionnaire, charts, and report.
+- `places.py` — Google Places API (New) client + demo fixtures.
+- `estimator.py` — turns place data into three-point assumptions, with rationales.
+
+## Google Maps API key
+
+For local use, paste the key into the app (it's only sent to Google, never stored).
+For a deployed app, add it to Streamlit secrets as `GOOGLE_MAPS_API_KEY` and the
+app will pick it up automatically.
