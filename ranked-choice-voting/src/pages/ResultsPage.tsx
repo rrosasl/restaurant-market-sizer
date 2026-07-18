@@ -41,10 +41,7 @@ const METHODS: { id: CountingMethod; label: string; blurb: string; bestFor: stri
 export function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
   const { poll, loading } = usePollWatch(pollId);
-  const { ballots, hidden, loading: ballotsLoading } = useBallotsWatch(
-    pollId,
-    poll ? `${poll.status}-${poll.resultsVisibility}` : '',
-  );
+  const { ballots, hidden, loading: ballotsLoading } = useBallotsWatch(pollId, poll);
   const [method, setMethod] = useState<CountingMethod>('irv');
 
   const optionName = useMemo(() => new Map((poll?.options ?? []).map((o) => [o.id, o.name])), [poll]);

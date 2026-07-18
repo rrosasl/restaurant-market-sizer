@@ -27,7 +27,7 @@ export function PollPage() {
   const { deviceId } = useBackendInfo();
   const { poll, loading } = usePollWatch(pollId);
   const { myBallot, loading: myBallotLoading } = useMyBallotWatch(pollId);
-  const { ballots, hidden } = useBallotsWatch(pollId, poll ? `${poll.status}-${poll.resultsVisibility}` : '');
+  const { ballots, hidden } = useBallotsWatch(pollId, poll);
 
   const [mode, setMode] = useState<BallotMode | null>(null);
   const [order, setOrder] = useState<PollOption[]>([]);
@@ -93,7 +93,20 @@ export function PollPage() {
         setMode('done');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not submit the vote. Try again.');
+      // Raw Firestore errors ("Missing or insufficient permissions") read as
+      // scary and unactionable — translate to something a voter can act on.
+      const code = (e as { code?: string })?.code ?? '';
+      if (code === 'permission-denied') {
+        setError(
+          poll.status === 'open'
+            ? "Couldn't submit your vote — please tap Submit again."
+            : 'This poll has closed — votes can no longer be submitted.',
+        );
+      } else {
+        setError("Couldn't submit your vote — check your connection and try again.");
+      }
+      // eslint-disable-next-line no-console
+      console.error('submitBallot failed', e);
     } finally {
       setSubmitting(false);
     }

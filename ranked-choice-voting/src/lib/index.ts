@@ -26,6 +26,11 @@ export function getBackend(): Promise<Backend> {
       await backend.init();
       return backend;
     })();
+    // A failed init (flaky mobile network during anonymous sign-in) must not
+    // poison the cache forever — clear it so the next call retries fresh.
+    backendPromise.catch(() => {
+      backendPromise = null;
+    });
   }
   return backendPromise;
 }

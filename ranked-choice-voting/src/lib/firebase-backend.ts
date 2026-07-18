@@ -96,8 +96,30 @@ export class FirebaseBackend implements Backend {
         this.uid = uid;
         return uid;
       })();
+      // Don't cache a failed sign-in — let the next call retry.
+      this.initPromise.catch(() => {
+        this.initPromise = null;
+      });
     }
     return this.initPromise;
+  }
+
+  /**
+   * Writes occasionally hit a transient PERMISSION_DENIED / UNAVAILABLE right
+   * after a fresh anonymous sign-in on slow mobile connections (the first
+   * request racing token attachment). Force a token refresh and retry once
+   * before surfacing an error to the voter.
+   */
+  private async withAuthRetry<T>(op: () => Promise<T>): Promise<T> {
+    try {
+      return await op();
+    } catch (e) {
+      const code = (e as { code?: string })?.code ?? '';
+      if (!['permission-denied', 'unauthenticated', 'unavailable'].includes(code)) throw e;
+      await this.auth.currentUser?.getIdToken(true).catch(() => {});
+      await new Promise((r) => setTimeout(r, 800));
+      return op();
+    }
   }
 
   private requireUid(): string {
@@ -108,14 +130,16 @@ export class FirebaseBackend implements Backend {
   async createPoll(input: CreatePollInput): Promise<Poll> {
     const uid = this.requireUid();
     const options = input.options.map((name, i) => ({ id: `opt${i + 1}`, name }));
-    const ref = await addDoc(collection(this.db, 'polls'), {
+    const ref = await this.withAuthRetry(() =>
+      addDoc(collection(this.db, 'polls'), {
       name: input.name,
       options,
       status: 'open',
       resultsVisibility: input.resultsVisibility,
-      creatorUid: uid,
-      createdAt: serverTimestamp(),
-    });
+        creatorUid: uid,
+        createdAt: serverTimestamp(),
+      }),
+    );
     return {
       id: ref.id,
       name: input.name,
@@ -165,14 +189,16 @@ export class FirebaseBackend implements Backend {
   ): Promise<void> {
     const uid = this.requireUid();
     const ballotId = slot === 'primary' ? uid : `${uid}-${Math.random().toString(36).slice(2, 10)}`;
-    await setDoc(doc(this.db, 'polls', pollId, 'ballots', ballotId), {
-      ranking,
-      voterName: voterName || null,
-      submittedAt: serverTimestamp(),
-    });
+    await this.withAuthRetry(() =>
+      setDoc(doc(this.db, 'polls', pollId, 'ballots', ballotId), {
+        ranking,
+        voterName: voterName || null,
+        submittedAt: serverTimestamp(),
+      }),
+    );
   }
 
   async setPollStatus(pollId: string, status: 'open' | 'closed'): Promise<void> {
-    await updateDoc(doc(this.db, 'polls', pollId), { status });
+    await this.withAuthRetry(() => updateDoc(doc(this.db, 'polls', pollId), { status }));
   }
 }
