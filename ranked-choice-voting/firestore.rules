@@ -1,0 +1,84 @@
+rules_version = '2';
+
+// Access model: no user accounts, only Firebase Anonymous Auth (invisible to
+// users — it just gives each browser a stable uid). Polls are link-only:
+// readable by id but never listable, so knowing the site URL reveals nothing.
+// Ballot doc ids are keyed to the voter's uid, which is what enforces
+// one-editable-ballot-per-device and lets a device add extra "pass the phone"
+// ballots (ids prefixed with its uid) without being able to touch anyone else's.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /polls/{pollId} {
+
+      function poll() {
+        return get(/databases/$(database)/documents/polls/$(pollId)).data;
+      }
+
+      function signedIn() {
+        return request.auth != null;
+      }
+
+      // Anyone with the link can read a poll…
+      allow get: if true;
+      // …but nobody can enumerate polls.
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'options', 'status', 'resultsVisibility', 'creatorUid', 'createdAt'])
+        && request.resource.data.creatorUid == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.options is list
+        && request.resource.data.options.size() >= 2
+        && request.resource.data.options.size() <= 20
+        && request.resource.data.resultsVisibility in ['live', 'after_close']
+        && request.resource.data.createdAt == request.time;
+
+      // Only the creator may update, and only to open/close voting.
+      allow update: if signedIn()
+        && request.auth.uid == resource.data.creatorUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['open', 'closed'];
+
+      // Election history is permanent.
+      allow delete: if false;
+
+      match /ballots/{ballotId} {
+
+        function isMyBallotId() {
+          return request.auth != null
+            && (ballotId == request.auth.uid || ballotId.matches(request.auth.uid + '-.*'));
+        }
+
+        function resultsReadable() {
+          return poll().status == 'closed' || poll().resultsVisibility == 'live';
+        }
+
+        function validBallot() {
+          return request.resource.data.keys().hasOnly(['ranking', 'voterName', 'submittedAt'])
+            && request.resource.data.ranking is list
+            && request.resource.data.ranking.size() == poll().options.size()
+            && (request.resource.data.voterName == null
+                || (request.resource.data.voterName is string && request.resource.data.voterName.size() <= 60))
+            && request.resource.data.submittedAt == request.time;
+        }
+
+        // Your own ballot is always readable (to show "your vote"); everyone
+        // else's only when results are readable — this is what makes
+        // "hidden until closed" server-enforced rather than cosmetic.
+        allow get: if isMyBallotId() || resultsReadable();
+        allow list: if resultsReadable();
+
+        // Vote or change your vote only while the poll is open, only under
+        // your own uid-keyed doc ids.
+        allow create, update: if isMyBallotId()
+          && poll().status == 'open'
+          && validBallot();
+
+        allow delete: if false;
+      }
+    }
+  }
+}

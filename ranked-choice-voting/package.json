@@ -12,9 +12,11 @@
   "dependencies": {
     "d3": "^7.9.0",
     "d3-sankey": "^0.12.3",
+    "firebase": "^12.16.0",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1",
     "recharts": "^3.9.2"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.4",
+    "firebase-tools": "^15.24.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.3",

@@ -1,15 +1,12 @@
-export type PollStatus = 'setup' | 'voting';
+export type PollStatus = 'open' | 'closed';
+
+/** 'live' = anyone with the link can watch results while voting is open;
+ *  'after_close' = ballots stay unreadable (server-enforced) until the poll closes. */
+export type ResultsVisibility = 'live' | 'after_close';
 
 export interface PollOption {
   id: string;
   name: string;
-}
-
-export interface Ballot {
-  id: string;
-  /** Ordered list of option ids, index 0 = 1st choice. Always a full ranking of the poll's options. */
-  ranking: string[];
-  submittedAt: number;
 }
 
 export interface Poll {
@@ -17,7 +14,17 @@ export interface Poll {
   name: string;
   options: PollOption[];
   status: PollStatus;
-  ballots: Ballot[];
+  resultsVisibility: ResultsVisibility;
+  creatorUid: string;
+  createdAt: number;
+}
+
+export interface Ballot {
+  id: string;
+  /** Ordered list of option ids, index 0 = 1st choice. Always a full ranking of the poll's options. */
+  ranking: string[];
+  voterName: string | null;
+  submittedAt: number;
 }
 
 export interface RoundTransfer {

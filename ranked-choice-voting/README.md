@@ -1,43 +1,79 @@
 # Ranked-Choice Voting
 
-A single-page app for running Instant Runoff Voting (IRV) polls, with a Sankey
-diagram that visualizes how votes transfer between elimination rounds.
+A shareable polling app for deciding things among friends: create a poll, send
+the link, everyone ranks the options from their own phone — no accounts, no
+login. Results show Instant Runoff Voting (with a Sankey diagram of vote
+transfers) and Borda count side by side, and every finished poll keeps a
+permanent results page.
 
-## Run it
+## How it works for voters
+
+- Open the shared link, drag options into your order of preference, optionally
+  type your name, submit. That's it.
+- One editable ballot per device: reopening the link shows your vote and lets
+  you change it until the poll closes. A "hand phone to next voter" button adds
+  extra ballots when people share a device.
+- The poll creator (the device that made the poll) can close voting; polls can
+  optionally hide results until they're closed.
+
+## Architecture
+
+- React + Vite + Tailwind frontend; all counting (IRV + Borda) runs client-side
+  in `src/utils/`.
+- Firestore holds `polls/{id}` and `polls/{id}/ballots/{ballotId}`. There are no
+  user accounts — Firebase **Anonymous Auth** silently gives each browser a
+  stable uid, and `firestore.rules` enforces everything on top of it:
+  - ballots are keyed by uid, so a device can only write its own ballot(s);
+  - only the creator's uid can open/close a poll;
+  - polls are readable by id but **not listable** (links are the only way in);
+  - "hidden until closed" denies ballot reads server-side while the poll is open;
+  - nothing is ever deletable — past election results are permanent.
+- With no Firebase config present the app runs in **demo mode**: identical UI,
+  everything stored in the browser's localStorage.
+
+## Develop
 
 ```bash
 npm install
-npm run dev
+npm run dev            # demo mode (local-only polls)
 ```
 
-## How it works
+Full-stack development against the Firestore emulator (needs Java):
 
-- **Setup** — name a poll and add options. State is kept in a `PollProvider`
-  React context (`src/state/PollContext.tsx`) that mocks a backing store.
-- **Vote** — rank the options by dragging (via `framer-motion`'s `Reorder`) or
-  with the up/down buttons. Submitting resets the form immediately so the
-  next voter can go right away.
-- **Results** — `src/utils/irv.ts` runs Instant Runoff Voting to completion:
-  each round tallies first-choice votes among still-active candidates: a
-  candidate with a majority wins outright, otherwise the last-place candidate
-  is eliminated and their ballots transfer to each voter's next active
-  choice (or to "exhausted" if they ranked no one else). The same function
-  builds a node/link graph for the Sankey diagram, and validates that every
-  node's incoming links sum to its own vote count before rendering (logged to
-  the console as `[IRV] Sankey data`, with a `console.warn` if that
-  conservation check ever fails).
+```bash
+npx firebase emulators:start --project demo-ranked-choice --only auth,firestore
+VITE_USE_EMULATOR=1 npm run dev
+```
 
-## Notable implementation detail
+## Going live (one-time Firebase setup, ~10 minutes)
 
-`d3-sankey` derives a node's value from the sum of its link weights, and
-divides layout spacing by `(numColumns - 1)`. Both are naturally zero for a
-poll that resolves in a single round (an outright first-round majority, or
-just two options) — that node/column count of 1 produces `NaN` positions.
-`SankeyChart.tsx` works around this by passing `fixedValue` so d3-sankey
-trusts our own tally instead of deriving it from links, and by laying out a
-single-column result by hand instead of calling d3-sankey at all.
+1. Go to <https://console.firebase.google.com> → **Add project** (any name,
+   Analytics not needed).
+2. **Build → Firestore Database → Create database** → production mode, pick a
+   region near you.
+3. **Build → Authentication → Get started → Sign-in method → Anonymous →
+   Enable.** (This is invisible to users — it's just how devices get stable ids.)
+4. **Project settings → Your apps → Web (`</>`)** → register the app → copy the
+   `firebaseConfig` object.
+5. Paste that config into `src/lib/firebase-config.ts` (replacing the `null`
+   branch) and put your project id in `.firebaserc`.
 
-## Stack
+Deploy (repeatable):
 
-React + TypeScript + Vite, Tailwind CSS v4, `framer-motion` (ranking +
-transitions), `recharts` (bar/pie charts), `d3-sankey` (Sankey layout).
+```bash
+npm run build
+npx firebase login          # first time only
+npx firebase deploy --only firestore:rules,hosting
+```
+
+Your app is then live at `https://<project-id>.web.app`.
+
+## Honest limitations
+
+- No login means duplicate-vote prevention is per-device best effort — someone
+  determined can vote from two devices. Fine for friends, not for anything
+  contentious.
+- Anyone with a poll's link can see its ballots (names included) once results
+  are visible.
+- "Creator" means the browser that created the poll: clear that browser's site
+  data and the close/reopen controls are orphaned (the poll keeps working).
