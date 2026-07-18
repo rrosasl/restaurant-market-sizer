@@ -58,15 +58,34 @@ VITE_USE_EMULATOR=1 npm run dev
 5. Paste that config into `src/lib/firebase-config.ts` (replacing the `null`
    branch) and put your project id in `.firebaserc`.
 
-Deploy (repeatable):
+### Deploying
+
+This repo ships a GitHub Actions workflow (`.github/workflows/deploy-voting.yml`)
+that builds the app and deploys the site + Firestore rules to Firebase on every
+push. It authenticates with a service-account key stored as the GitHub repo
+secret **`FIREBASE_SERVICE_ACCOUNT`** — the key lives in GitHub, never in the
+codebase.
+
+One-time setup:
+
+1. Firebase console → ⚙️ **Project settings → Service accounts → Generate new
+   private key**. This downloads a JSON file.
+2. GitHub repo → **Settings → Secrets and variables → Actions → New repository
+   secret**. Name it `FIREBASE_SERVICE_ACCOUNT`, paste the JSON file's contents
+   as the value.
+3. Push (or re-run the workflow). It deploys to `https://rnkedchoice.web.app`.
+
+If the deploy fails on a permissions error, grant that service account the
+**Editor** (or **Firebase Admin**) role in Google Cloud Console → IAM, then
+re-run.
+
+To deploy by hand instead (from a machine that can reach Firebase):
 
 ```bash
 npm run build
-npx firebase login          # first time only
-npx firebase deploy --only firestore:rules,hosting
+npx firebase login
+npx firebase deploy --only hosting,firestore:rules
 ```
-
-Your app is then live at `https://<project-id>.web.app`.
 
 ## Honest limitations
 
