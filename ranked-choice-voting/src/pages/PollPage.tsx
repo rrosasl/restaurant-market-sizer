@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getBackend } from '../lib';
 import { useBackendInfo, useBallotsWatch, useMyBallotWatch, usePollWatch } from '../lib/hooks';
 import { getRememberedVoterName, recordHistory, rememberVoterName } from '../lib/history';
+import { shuffle } from '../utils/shuffle';
 import { RankingList } from '../components/RankingList';
 import { ShareBar } from '../components/ShareBar';
 import type { Poll, PollOption } from '../types';
@@ -46,7 +47,9 @@ export function PollPage() {
       setMode('done');
     } else {
       setMode('first');
-      setOrder(poll.options);
+      // Fresh ballots start in a random order so the sequence the creator
+      // typed the options in doesn't bias everyone's rankings.
+      setOrder(shuffle(poll.options));
       setVoterName(getRememberedVoterName());
     }
   }, [poll, myBallot, myBallotLoading, mode]);
@@ -119,7 +122,7 @@ export function PollPage() {
 
   function startExtra() {
     if (!poll) return;
-    setOrder(poll.options);
+    setOrder(shuffle(poll.options));
     setVoterName('');
     setExtraSubmitted(false);
     setMode('extra');
@@ -164,7 +167,10 @@ export function PollPage() {
                 </p>
               )}
               <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                Drag to reorder, or use the arrows — top is your 1st choice.
+                Drag the ⠿ handle or use the arrows — top is your 1st choice.
+              </p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Options are shown in random order to keep the vote fair.
               </p>
               <div className="mt-3">
                 <RankingList order={order} onReorder={setOrder} />
