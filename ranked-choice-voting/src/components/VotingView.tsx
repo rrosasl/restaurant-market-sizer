@@ -13,7 +13,7 @@ function RankBadge({ index }: { index: number }) {
   );
 }
 
-export function VotingView() {
+export function VotingView({ onFinishVoting }: { onFinishVoting: () => void }) {
   const { poll, submitBallot } = usePoll();
   const [order, setOrder] = useState<PollOption[]>(poll.options);
   const [justSubmitted, setJustSubmitted] = useState(false);
@@ -69,6 +69,13 @@ export function VotingView() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Drag to reorder, or use the arrows — top is your 1st choice.
         </p>
+        <button
+          type="button"
+          onClick={onFinishVoting}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
+        >
+          Finish voting &amp; see results →
+        </button>
 
         <AnimatePresence mode="wait">
           {justSubmitted ? (

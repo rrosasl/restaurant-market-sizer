@@ -74,7 +74,7 @@ function AppShell() {
           transition={{ duration: 0.2 }}
         >
           {activeTab === 'setup' && <SetupView onStarted={() => setActiveTab('voting')} />}
-          {activeTab === 'voting' && <VotingView />}
+          {activeTab === 'voting' && <VotingView onFinishVoting={() => setActiveTab('results')} />}
           {activeTab === 'results' && <ResultsView />}
         </motion.div>
       </main>

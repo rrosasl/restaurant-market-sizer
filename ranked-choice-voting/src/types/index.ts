@@ -68,3 +68,20 @@ export interface IRVResult {
   sankey: SankeyData;
   totalBallots: number;
 }
+
+export type CountingMethod = 'irv' | 'borda';
+
+export interface BordaScore {
+  optionId: string;
+  /** Points earned per rank position, index 0 = points from being ranked 1st. */
+  byRank: number[];
+  total: number;
+}
+
+export interface BordaResult {
+  /** Descending by total points. */
+  scores: BordaScore[];
+  winner: string | null;
+  maxPossible: number;
+  totalBallots: number;
+}
