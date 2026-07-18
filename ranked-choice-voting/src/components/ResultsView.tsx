@@ -54,7 +54,7 @@ export function ResultsView() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-6 text-white shadow-lg shadow-brand-600/20">
-        <p className="text-sm font-medium text-brand-100">{poll.name}</p>
+        <p className="text-sm font-medium text-brand-100">{poll.name.trim() || 'Untitled Poll'}</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">
           {result.winner ? optionName.get(result.winner) : 'No winner yet'} wins
         </h1>

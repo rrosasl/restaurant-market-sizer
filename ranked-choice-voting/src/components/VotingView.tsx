@@ -61,7 +61,9 @@ export function VotingView() {
     <div className="mx-auto max-w-xl">
       <div className="rounded-2xl bg-white/80 p-8 shadow-lg shadow-slate-200/60 ring-1 ring-slate-900/5 backdrop-blur dark:bg-slate-900/70 dark:shadow-black/30 dark:ring-white/10">
         <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{poll.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            {poll.name.trim() || 'Untitled Poll'}
+          </h1>
           <span className="text-sm text-slate-500 dark:text-slate-400">{poll.ballots.length} votes cast</span>
         </div>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

@@ -20,12 +20,12 @@ export function SetupView({ onStarted }: { onStarted: () => void }) {
           Create a Ranked-Choice Poll
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Name your poll, add at least two options, then start voting.
+          Add at least two options, then start voting. Naming the poll is optional.
         </p>
 
         <div className="mt-6">
           <label htmlFor="poll-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-            Poll name
+            Poll name <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
           </label>
           <input
             id="poll-name"
@@ -112,7 +112,7 @@ export function SetupView({ onStarted }: { onStarted: () => void }) {
           {!isLocked ? (
             <button
               type="button"
-              disabled={poll.options.length < 2 || !poll.name.trim()}
+              disabled={poll.options.length < 2}
               onClick={() => {
                 startVoting();
                 onStarted();
