@@ -47,7 +47,7 @@ function RankingRow({
         ⠿
       </button>
       <RankBadge index={index} />
-      <span className="min-w-0 flex-1 truncate font-medium select-none text-slate-800 dark:text-slate-100">
+      <span className="min-w-0 flex-1 font-medium break-words select-none text-slate-800 dark:text-slate-100">
         {option.name}
       </span>
       <div className="flex shrink-0 flex-col gap-0.5">

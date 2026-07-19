@@ -152,7 +152,7 @@ export function PollPage() {
 
       <div className="rounded-2xl bg-white/80 p-6 shadow-lg shadow-slate-200/60 ring-1 ring-slate-900/5 backdrop-blur sm:p-8 dark:bg-slate-900/70 dark:shadow-black/30 dark:ring-white/10">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight break-words text-slate-900 dark:text-slate-100">
             {poll.name.trim() || 'Untitled Poll'}
           </h1>
           <span
