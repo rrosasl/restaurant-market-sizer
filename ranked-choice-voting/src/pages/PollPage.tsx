@@ -243,20 +243,20 @@ export function PollPage() {
                 )}
               </div>
               {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={startEdit}
-                  className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  Change my vote
-                </button>
+              <div className="mt-4 space-y-2">
                 <button
                   type="button"
                   onClick={startExtra}
-                  className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="w-full rounded-lg bg-brand-600 py-3 text-base font-semibold text-white shadow-md shadow-brand-600/20 transition hover:bg-brand-700 active:scale-[0.98]"
                 >
-                  Hand phone to next voter
+                  🤝 Hand phone to next voter
+                </button>
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Change my vote
                 </button>
               </div>
             </motion.div>

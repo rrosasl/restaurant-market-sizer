@@ -76,6 +76,14 @@ export class FirebaseBackend implements Backend {
       connectAuthEmulator(this.auth, 'http://127.0.0.1:9099', { disableWarnings: true });
       connectFirestoreEmulator(this.db, '127.0.0.1', 8080);
     }
+    // Auth is shared across tabs: another tab (or an in-app browser racing a
+    // cold storage read) can sign in a NEW anonymous user, which silently
+    // replaces currentUser everywhere. Track it so this backend never keeps
+    // writing under a uid whose credentials are no longer the active ones —
+    // that mismatch is a guaranteed PERMISSION_DENIED from the uid-keyed rules.
+    onAuthStateChanged(this.auth, (user) => {
+      if (user) this.uid = user.uid;
+    });
   }
 
   init(): Promise<string> {
@@ -122,9 +130,11 @@ export class FirebaseBackend implements Backend {
     }
   }
 
+  /** The uid writes must be keyed to: always the LIVE auth user when present. */
   private requireUid(): string {
-    if (!this.uid) throw new Error('Backend not initialized');
-    return this.uid;
+    const uid = this.auth.currentUser?.uid ?? this.uid;
+    if (!uid) throw new Error('Backend not initialized');
+    return uid;
   }
 
   async createPoll(input: CreatePollInput): Promise<Poll> {
@@ -173,12 +183,28 @@ export class FirebaseBackend implements Backend {
   }
 
   watchMyBallot(pollId: string, cb: (ballot: Ballot | null) => void, onError?: (e: Error) => void): Unsubscribe {
-    const uid = this.requireUid();
-    return onSnapshot(
-      doc(this.db, 'polls', pollId, 'ballots', uid),
-      (snap) => cb(snap.exists() ? snapToBallot(snap) : null),
-      (e) => onError?.(e),
-    );
+    // Keyed to the LIVE identity: if another tab's sign-in replaces the user,
+    // re-subscribe to the new uid's ballot doc instead of watching a doc this
+    // client can no longer write to.
+    let inner: Unsubscribe | undefined;
+    let watchedUid: string | null = null;
+    const subscribeFor = (uid: string) => {
+      inner?.();
+      watchedUid = uid;
+      inner = onSnapshot(
+        doc(this.db, 'polls', pollId, 'ballots', uid),
+        (snap) => cb(snap.exists() ? snapToBallot(snap) : null),
+        (e) => onError?.(e),
+      );
+    };
+    subscribeFor(this.requireUid());
+    const stopAuthWatch = onAuthStateChanged(this.auth, (user) => {
+      if (user && user.uid !== watchedUid) subscribeFor(user.uid);
+    });
+    return () => {
+      stopAuthWatch();
+      inner?.();
+    };
   }
 
   async submitBallot(
@@ -187,15 +213,19 @@ export class FirebaseBackend implements Backend {
     voterName: string | null,
     slot: 'primary' | 'extra',
   ): Promise<void> {
-    const uid = this.requireUid();
-    const ballotId = slot === 'primary' ? uid : `${uid}-${Math.random().toString(36).slice(2, 10)}`;
-    await this.withAuthRetry(() =>
-      setDoc(doc(this.db, 'polls', pollId, 'ballots', ballotId), {
+    const suffix = Math.random().toString(36).slice(2, 10);
+    await this.withAuthRetry(() => {
+      // Resolve the uid inside each attempt: if the active identity changed
+      // between attempts (cross-tab sign-in), the retry writes under the uid
+      // that matches the credentials actually being sent.
+      const uid = this.requireUid();
+      const ballotId = slot === 'primary' ? uid : `${uid}-${suffix}`;
+      return setDoc(doc(this.db, 'polls', pollId, 'ballots', ballotId), {
         ranking,
         voterName: voterName || null,
         submittedAt: serverTimestamp(),
-      }),
-    );
+      });
+    });
   }
 
   async setPollStatus(pollId: string, status: 'open' | 'closed'): Promise<void> {
