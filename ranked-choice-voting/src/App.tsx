@@ -21,15 +21,35 @@ function Shell() {
             </span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
-              aria-label={t('switchLang')}
-              title={t('switchLang')}
-              className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:text-white"
+            {/* Both languages stay visible with the active one filled in. A
+                single-label toggle was ambiguous (does "ES" mean the current
+                language or the one you'd switch to?) and gave no obvious
+                visual change on tap. */}
+            <div
+              role="group"
+              aria-label={t('languageLabel')}
+              className="flex items-center gap-0.5 rounded-full bg-slate-100 p-0.5 dark:bg-slate-800/70"
             >
-              🌐 {lang === 'en' ? 'ES' : 'EN'}
-            </button>
+              {(['en', 'es'] as const).map((code) => {
+                const active = lang === code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLang(code)}
+                    aria-pressed={active}
+                    title={code === 'en' ? 'English' : 'Español'}
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${
+                      active
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                    }`}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
             <Link
               to="/"
               className="rounded-full bg-slate-100 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:text-white"

@@ -1,3 +1,4 @@
+import { readStored, writeStored } from './storage';
 import type { Backend, CreatePollInput, Unsubscribe } from './backend';
 import { ResultsHiddenError } from './backend';
 import type { Ballot, Poll } from '../types';
@@ -14,9 +15,10 @@ function randomId(len = 20): string {
 }
 
 function readJson<T>(key: string, fallback: T): T {
+  const raw = readStored(key);
+  if (!raw) return fallback;
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    return JSON.parse(raw) as T;
   } catch {
     return fallback;
   }
@@ -34,10 +36,10 @@ export class LocalBackend implements Backend {
   private uid: string;
 
   constructor() {
-    let uid = localStorage.getItem(DEVICE_KEY);
+    let uid = readStored(DEVICE_KEY);
     if (!uid) {
       uid = `local-${randomId(12)}`;
-      localStorage.setItem(DEVICE_KEY, uid);
+      writeStored(DEVICE_KEY, uid);
     }
     this.uid = uid;
     window.addEventListener('storage', (e) => {
@@ -73,7 +75,7 @@ export class LocalBackend implements Backend {
     };
     const polls = readJson<Record<string, Poll>>(POLLS_KEY, {});
     polls[poll.id] = poll;
-    localStorage.setItem(POLLS_KEY, JSON.stringify(polls));
+    writeStored(POLLS_KEY, JSON.stringify(polls));
     this.emit(POLLS_KEY);
     return poll;
   }
@@ -127,7 +129,7 @@ export class LocalBackend implements Backend {
     const id = slot === 'primary' ? this.uid : `${this.uid}-${randomId(8)}`;
     const ballots = readJson<Ballot[]>(ballotsKey(pollId), []).filter((b) => b.id !== id);
     ballots.push({ id, ranking, voterName: voterName || null, submittedAt: Date.now() });
-    localStorage.setItem(ballotsKey(pollId), JSON.stringify(ballots));
+    writeStored(ballotsKey(pollId), JSON.stringify(ballots));
     this.emit(ballotsKey(pollId));
   }
 
@@ -137,7 +139,7 @@ export class LocalBackend implements Backend {
     if (!poll) throw new Error('Poll not found.');
     if (poll.creatorUid !== this.uid) throw new Error('Only the poll creator can do that.');
     polls[pollId] = { ...poll, status };
-    localStorage.setItem(POLLS_KEY, JSON.stringify(polls));
+    writeStored(POLLS_KEY, JSON.stringify(polls));
     this.emit(POLLS_KEY);
   }
 }

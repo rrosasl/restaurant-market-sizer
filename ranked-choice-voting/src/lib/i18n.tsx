@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { readStored, writeStored } from './storage';
 
 export type Lang = 'en' | 'es';
 
@@ -9,7 +10,7 @@ const en = {
   appName: 'Ranked-Choice Voting',
   newPoll: '+ New poll',
   demoBanner: 'Demo mode — polls are saved only in this browser. Connect Firebase to share polls by link.',
-  switchLang: 'Cambiar a español',
+  languageLabel: 'Language',
 
   // Home: create form
   createTitle: 'Create a Ranked-Choice Poll',
@@ -177,7 +178,7 @@ const es: typeof en = {
   appName: 'Votación Preferencial',
   newPoll: '+ Nueva encuesta',
   demoBanner: 'Modo demo — las encuestas se guardan solo en este navegador. Conecta Firebase para compartir por enlace.',
-  switchLang: 'Switch to English',
+  languageLabel: 'Idioma',
 
   createTitle: 'Crea una Votación Preferencial',
   createSubtitle: 'Agrega al menos dos opciones y comparte el enlace — nadie necesita cuenta para votar.',
@@ -352,9 +353,18 @@ export interface I18n {
 }
 
 function detectLang(): Lang {
-  const stored = localStorage.getItem(LANG_KEY);
+  const stored = readStored(LANG_KEY);
   if (stored === 'en' || stored === 'es') return stored;
-  return navigator.language?.toLowerCase().startsWith('es') ? 'es' : 'en';
+  // Walk the browser's full preference list, not just the top entry: a phone
+  // set to "English (US), Español" should land on English, while one set to
+  // "Français, Español" should still get Spanish rather than the en fallback.
+  const prefs = navigator.languages?.length ? navigator.languages : [navigator.language ?? ''];
+  for (const pref of prefs) {
+    const code = pref.toLowerCase();
+    if (code.startsWith('es')) return 'es';
+    if (code.startsWith('en')) return 'en';
+  }
+  return 'en';
 }
 
 const I18nContext = createContext<I18n | null>(null);
@@ -372,8 +382,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return {
       lang,
       setLang: (l) => {
-        localStorage.setItem(LANG_KEY, l);
+        // State first, persistence second: if storage is unavailable (private
+        // browsing, in-app browsers) the switch must still take effect for
+        // this session rather than appearing to do nothing.
         setLangState(l);
+        writeStored(LANG_KEY, l);
       },
       t,
       tn: (key, n, params) => {
