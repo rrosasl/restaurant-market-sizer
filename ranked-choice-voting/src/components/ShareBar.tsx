@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useI18n } from '../lib/i18n';
 
 export function ShareBar({ pollName, highlight }: { pollName: string; highlight: boolean }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const url = window.location.origin + window.location.pathname.replace(/\/results$/, '');
 
@@ -11,7 +13,7 @@ export function ShareBar({ pollName, highlight }: { pollName: string; highlight:
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard can be unavailable (http, permissions) — select-and-copy fallback.
-      window.prompt('Copy this link:', url);
+      window.prompt(t('copyPrompt'), url);
     }
   }
 
@@ -33,7 +35,7 @@ export function ShareBar({ pollName, highlight }: { pollName: string; highlight:
     >
       {highlight && (
         <p className="mb-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
-          🎉 Poll created — send this link to your voters:
+          {t('shareCreated')}
         </p>
       )}
       <div className="flex items-center gap-2">
@@ -45,16 +47,16 @@ export function ShareBar({ pollName, highlight }: { pollName: string; highlight:
           onClick={copy}
           className="shrink-0 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98]"
         >
-          {copied ? '✓ Copied' : 'Copy link'}
+          {copied ? t('copied') : t('copyLink')}
         </button>
         {typeof navigator.share === 'function' && (
           <button
             type="button"
             onClick={share}
-            aria-label="Share"
+            aria-label={t('shareBtn')}
             className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Share…
+            {t('shareBtn')}
           </button>
         )}
       </div>

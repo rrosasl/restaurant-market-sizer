@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useBallotsWatch, usePollWatch } from '../lib/hooks';
+import { useI18n } from '../lib/i18n';
 import { computeIRV } from '../utils/irv';
 import { computeBorda } from '../utils/borda';
 import type { CountingMethod } from '../types';
@@ -21,25 +22,9 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   );
 }
 
-const METHODS: { id: CountingMethod; label: string; blurb: string; bestFor: string }[] = [
-  {
-    id: 'irv',
-    label: 'Ranked Choice (IRV)',
-    blurb: 'Eliminates the weakest candidate round by round until one has a majority of active votes.',
-    bestFor:
-      'Best for single-winner decisions where majority support matters most — it prevents vote-splitting between similar options and guarantees the winner is acceptable to over half of voters, but it can ignore a candidate\'s broad appeal if they rarely get 1st-place votes.',
-  },
-  {
-    id: 'borda',
-    label: 'Borda Count',
-    blurb: 'Every ranked position earns points (1st choice earns the most); highest total wins.',
-    bestFor:
-      'Best for consensus decisions — a candidate nobody loves but nobody hates can beat one a slim majority ranks 1st but everyone else ranks last. Good for group picks and prioritization, but easier to game by strategically burying rivals.',
-  },
-];
-
 export function ResultsPage() {
   const { pollId } = useParams<{ pollId: string }>();
+  const { t, tn } = useI18n();
   const { poll, loading } = usePollWatch(pollId);
   const { ballots, hidden, loading: ballotsLoading } = useBallotsWatch(pollId, poll);
   const [method, setMethod] = useState<CountingMethod>('irv');
@@ -58,15 +43,15 @@ export function ResultsPage() {
   }, [poll, ballots]);
 
   if (loading || !pollId) {
-    return <p className="py-16 text-center text-sm text-slate-400">Loading results…</p>;
+    return <p className="py-16 text-center text-sm text-slate-400">{t('loadingResults')}</p>;
   }
 
   if (!poll) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl bg-white/80 p-8 text-center shadow-lg ring-1 ring-slate-900/5 dark:bg-slate-900/70 dark:ring-white/10">
-        <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">Poll not found</p>
+        <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('notFound')}</p>
         <Link to="/" className="mt-4 inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
-          ← Back home
+          {t('backHome')}
         </Link>
       </div>
     );
@@ -78,7 +63,7 @@ export function ResultsPage() {
       to={`/poll/${poll.id}`}
       className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
     >
-      ← Back to poll
+      {t('backToPoll')}
     </Link>
   );
 
@@ -88,17 +73,15 @@ export function ResultsPage() {
         {backLink}
         <div className="rounded-2xl bg-white/80 p-8 text-center shadow-lg ring-1 ring-slate-900/5 dark:bg-slate-900/70 dark:ring-white/10">
           <p className="text-3xl">🔒</p>
-          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Results are sealed</p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            The poll creator chose to hide results until voting closes. Check back once the poll is closed.
-          </p>
+          <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">{t('sealedTitle')}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('sealedDesc')}</p>
         </div>
       </div>
     );
   }
 
   if (ballotsLoading) {
-    return <p className="py-16 text-center text-sm text-slate-400">Loading results…</p>;
+    return <p className="py-16 text-center text-sm text-slate-400">{t('loadingResults')}</p>;
   }
 
   if (!irvResult || !bordaResult || ballots.length === 0) {
@@ -106,11 +89,16 @@ export function ResultsPage() {
       <div className="mx-auto max-w-xl space-y-4">
         {backLink}
         <div className="rounded-2xl bg-white/80 p-8 text-center shadow-lg ring-1 ring-slate-900/5 dark:bg-slate-900/70 dark:ring-white/10">
-          <p className="text-slate-600 dark:text-slate-300">No votes yet — share the poll link to collect ballots.</p>
+          <p className="text-slate-600 dark:text-slate-300">{t('noVotesYet')}</p>
         </div>
       </div>
     );
   }
+
+  const methods: { id: CountingMethod; label: string; blurb: string; bestFor: string }[] = [
+    { id: 'irv', label: t('methodIrv'), blurb: t('irvBlurb'), bestFor: t('irvBest') },
+    { id: 'borda', label: t('methodBorda'), blurb: t('bordaBlurb'), bestFor: t('bordaBest') },
+  ];
 
   const firstRound = irvResult.rounds[0];
   const barData = optionOrder.map((id) => ({ name: optionName.get(id) ?? id, votes: firstRound.tally[id] ?? 0 }));
@@ -121,9 +109,9 @@ export function ResultsPage() {
     votes: finalRound.tally[id] ?? 0,
   }));
 
-  const activeMethod = METHODS.find((m) => m.id === method)!;
+  const activeMethod = methods.find((m) => m.id === method)!;
   const winnerId = method === 'irv' ? irvResult.winner : bordaResult.winner;
-  const winnerName = winnerId ? optionName.get(winnerId) : 'No winner yet';
+  const winnerName = winnerId ? (optionName.get(winnerId) ?? '') : '—';
 
   // Call out exact ties instead of pretending the first-sorted candidate leads.
   const tiedWith: string[] = [];
@@ -137,6 +125,19 @@ export function ResultsPage() {
       if (id !== winnerId && final.tally[id] === final.tally[winnerId]) tiedWith.push(optionName.get(id) ?? id);
     }
   }
+
+  const roundsCount = irvResult.rounds.length;
+  const bannerStats =
+    method === 'irv'
+      ? tn('ballotsRounds', irvResult.totalBallots, {
+          r: roundsCount,
+          rs: roundsCount === 1 ? '' : 's',
+        })
+      : tn('ballotsPoints', bordaResult.totalBallots, {
+          p: bordaResult.scores[0]?.total ?? 0,
+          max: bordaResult.maxPossible,
+        });
+
   const namedVoters = ballots.filter((b) => b.voterName).map((b) => b.voterName as string);
   const anonymousCount = ballots.length - namedVoters.length;
 
@@ -146,26 +147,22 @@ export function ResultsPage() {
 
       <div className="rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 p-6 text-white shadow-lg shadow-brand-600/20">
         <p className="text-sm font-medium text-brand-100">
-          {poll.name.trim() || 'Untitled Poll'}
-          {isOpen && ' · voting still open'}
+          {poll.name.trim() || t('untitledPoll')}
+          {isOpen && t('votingStillOpen')}
         </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
+        <h1 className="mt-1 text-3xl font-bold tracking-tight break-words">
           {tiedWith.length > 0
-            ? `${winnerName} and ${tiedWith.join(' and ')} are tied`
-            : `${winnerName} ${isOpen ? 'is leading' : 'wins'}`}
+            ? t('tiedBanner', { names: [winnerName, ...tiedWith].join(t('and')) })
+            : t(isOpen ? 'isLeading' : 'winsBanner', { name: winnerName })}
         </h1>
-        <p className="mt-1 text-sm text-brand-100">
-          {method === 'irv'
-            ? `${irvResult.totalBallots} ballot${irvResult.totalBallots === 1 ? '' : 's'} · resolved in ${irvResult.rounds.length} round${irvResult.rounds.length === 1 ? '' : 's'}`
-            : `${bordaResult.totalBallots} ballot${bordaResult.totalBallots === 1 ? '' : 's'} · ${bordaResult.scores[0]?.total ?? 0} of ${bordaResult.maxPossible} possible points`}
-        </p>
+        <p className="mt-1 text-sm text-brand-100">{bannerStats}</p>
       </div>
 
       <div className="rounded-2xl bg-white/80 p-4 shadow-lg shadow-slate-200/60 ring-1 ring-slate-900/5 backdrop-blur dark:bg-slate-900/70 dark:shadow-black/30 dark:ring-white/10">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Counting method:</span>
+          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('countingMethod')}</span>
           <div className="flex items-center gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800/70">
-            {METHODS.map((m) => (
+            {methods.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -183,43 +180,43 @@ export function ResultsPage() {
         </div>
         <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{activeMethod.blurb}</p>
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          <span className="font-semibold text-slate-600 dark:text-slate-300">Best for: </span>
+          <span className="font-semibold text-slate-600 dark:text-slate-300">{t('bestFor')}</span>
           {activeMethod.bestFor}
         </p>
       </div>
 
       {method === 'irv' ? (
         <>
-          <Card title="Round-by-Round Elimination" subtitle="How votes moved as candidates were eliminated">
+          <Card title={t('cardSankeyTitle')} subtitle={t('cardSankeySub')}>
             <SankeyChart data={irvResult.sankey} optionOrder={optionOrder} />
           </Card>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card title="1st-Choice Votes" subtitle="Initial preference distribution before any elimination">
+            <Card title={t('cardFirstTitle')} subtitle={t('cardFirstSub')}>
               <FirstChoiceBarChart data={barData} />
             </Card>
-            <Card title="Final Round" subtitle="Vote share among the last candidates standing">
+            <Card title={t('cardFinalTitle')} subtitle={t('cardFinalSub')}>
               <FinalRoundPieChart data={pieData} />
             </Card>
           </div>
 
-          <Card title="Round Summary" subtitle="Step-by-step breakdown of every elimination round">
+          <Card title={t('cardRoundsTitle')} subtitle={t('cardRoundsSub')}>
             <RoundSummary result={irvResult} optionName={optionName} />
           </Card>
         </>
       ) : (
         <>
-          <Card title="Points by Rank" subtitle="Each candidate's total, broken down by which ranked position earned it">
+          <Card title={t('cardPointsTitle')} subtitle={t('cardPointsSub')}>
             <BordaChart result={bordaResult} options={poll.options} />
           </Card>
 
-          <Card title="Final Standings" subtitle="Every candidate, ranked by total points">
+          <Card title={t('cardStandingsTitle')} subtitle={t('cardStandingsSub')}>
             <BordaSummary result={bordaResult} options={poll.options} />
           </Card>
         </>
       )}
 
-      <Card title="Who voted" subtitle="Names are optional — voters chose whether to share theirs">
+      <Card title={t('whoVoted')} subtitle={t('whoVotedSub')}>
         <div className="flex flex-wrap gap-1.5">
           {namedVoters.map((name, i) => (
             <span
@@ -231,7 +228,7 @@ export function ResultsPage() {
           ))}
           {anonymousCount > 0 && (
             <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-400 ring-1 ring-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:ring-slate-700">
-              +{anonymousCount} anonymous
+              {t('anonymous', { n: anonymousCount })}
             </span>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useI18n } from '../lib/i18n';
 import type { BordaResult, PollOption } from '../types';
 
 // Points-by-rank is an ordinal dimension (1st-choice points matter more than 5th-choice
@@ -15,13 +16,8 @@ function rankColor(rankIndex: number, rankCount: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
-}
-
 export function BordaChart({ result, options }: { result: BordaResult; options: PollOption[] }) {
+  const { t, ordinal, lang } = useI18n();
   const optionName = new Map(options.map((o) => [o.id, o.name]));
   const rankCount = options.length;
 
@@ -54,12 +50,16 @@ export function BordaChart({ result, options }: { result: BordaResult; options: 
             contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
             formatter={(value, key) => {
               const rankIndex = Number(String(key).replace('rank', ''));
-              return [`${value} pts`, `${ordinal(rankIndex + 1)}-choice votes`];
+              return [t('pts', { n: Number(value) }), t('nthChoicePts', { ord: ordinal(rankIndex + 1) })];
             }}
           />
           <Legend
             wrapperStyle={{ fontSize: 11 }}
-            formatter={(key: string) => `${ordinal(Number(key.replace('rank', '')) + 1)} choice`}
+            formatter={(key: string) =>
+              lang === 'es'
+                ? `${ordinal(Number(key.replace('rank', '')) + 1)} opción`
+                : `${ordinal(Number(key.replace('rank', '')) + 1)} choice`
+            }
           />
           {Array.from({ length: rankCount }, (_, i) => (
             <Bar key={i} dataKey={`rank${i}`} stackId="points" fill={rankColor(i, rankCount)} radius={i === rankCount - 1 ? [0, 4, 4, 0] : undefined} />

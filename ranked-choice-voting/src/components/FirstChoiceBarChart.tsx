@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useI18n } from '../lib/i18n';
 
 const PALETTE = [
   '#6366f1',
@@ -19,6 +20,7 @@ export interface BarDatum {
 }
 
 export function FirstChoiceBarChart({ data }: { data: BarDatum[] }) {
+  const { t } = useI18n();
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
@@ -29,7 +31,7 @@ export function FirstChoiceBarChart({ data }: { data: BarDatum[] }) {
           cursor={{ fill: 'currentColor', opacity: 0.05 }}
           contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
         />
-        <Bar dataKey="votes" radius={[6, 6, 0, 0]}>
+        <Bar dataKey="votes" name={t('votes')} radius={[6, 6, 0, 0]}>
           {data.map((entry, index) => (
             <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
           ))}

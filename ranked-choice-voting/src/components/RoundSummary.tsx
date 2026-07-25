@@ -1,6 +1,8 @@
+import { useI18n } from '../lib/i18n';
 import type { IRVResult } from '../types';
 
 export function RoundSummary({ result, optionName }: { result: IRVResult; optionName: Map<string, string> }) {
+  const { t, tn } = useI18n();
   return (
     <ol className="space-y-3">
       {result.rounds.map((round) => {
@@ -16,10 +18,12 @@ export function RoundSummary({ result, optionName }: { result: IRVResult; option
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
                 {round.round}
               </span>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Round {round.round}</span>
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {t('roundN', { n: round.round })}
+              </span>
               <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
-                {round.totalActiveVotes} active vote{round.totalActiveVotes === 1 ? '' : 's'}
-                {round.exhaustedVotes > 0 ? ` · ${round.exhaustedVotes} exhausted` : ''}
+                {tn('activeVotes', round.totalActiveVotes)}
+                {round.exhaustedVotes > 0 ? t('exhaustedCount', { n: round.exhaustedVotes }) : ''}
               </span>
             </div>
 
@@ -45,38 +49,31 @@ export function RoundSummary({ result, optionName }: { result: IRVResult; option
 
             <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
               {isFinal ? (
-                <>
-                  🏆 <span className="font-semibold">{optionName.get(round.winner!)}</span> wins with{' '}
-                  {round.tally[round.winner!]} of {round.totalActiveVotes} votes
-                  {round.totalActiveVotes > 0
-                    ? ` (${((round.tally[round.winner!] / round.totalActiveVotes) * 100).toFixed(1)}%)`
-                    : ''}
-                  .
-                </>
+                t('winsWith', {
+                  name: optionName.get(round.winner!) ?? round.winner!,
+                  v: round.tally[round.winner!],
+                  t: round.totalActiveVotes,
+                  pct:
+                    round.totalActiveVotes > 0
+                      ? ((round.tally[round.winner!] / round.totalActiveVotes) * 100).toFixed(1)
+                      : '0',
+                })
               ) : (
                 <>
                   <span className="font-semibold text-red-600 dark:text-red-400">
-                    {optionName.get(round.eliminated ?? '') ?? 'No one'}
+                    {optionName.get(round.eliminated ?? '') ?? t('noOne')}
                   </span>{' '}
-                  is eliminated with the fewest votes ({round.tally[round.eliminated ?? '']}).{' '}
-                  {round.transfers.length > 0 && (
-                    <>
-                      Votes transfer:{' '}
-                      {round.transfers
-                        .map((t) => {
-                          const target = t.to === 'EXHAUSTED' ? 'no further preference (exhausted)' : optionName.get(t.to) ?? t.to;
-                          return `${t.count} → ${target}`;
+                  {t('eliminatedWith', { v: round.tally[round.eliminated ?? ''] })}
+                  {round.transfers.length > 0 &&
+                    t('votesTransfer', {
+                      list: round.transfers
+                        .map((tr) => {
+                          const target = tr.to === 'EXHAUSTED' ? t('noFurtherPref') : (optionName.get(tr.to) ?? tr.to);
+                          return `${tr.count} → ${target}`;
                         })
-                        .join(', ')}
-                      .
-                    </>
-                  )}
-                  {leaderId && (
-                    <>
-                      {' '}
-                      Current leader: <span className="font-medium">{optionName.get(leaderId)}</span>.
-                    </>
-                  )}
+                        .join(', '),
+                    })}
+                  {leaderId && ' ' + t('currentLeader', { name: optionName.get(leaderId) ?? leaderId })}
                 </>
               )}
             </p>

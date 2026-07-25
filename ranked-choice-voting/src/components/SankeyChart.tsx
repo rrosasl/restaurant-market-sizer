@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
+import { useI18n } from '../lib/i18n';
 import type { SankeyData } from '../types';
 
 const PALETTE = [
@@ -53,7 +54,9 @@ interface LayoutLink {
 const COMPACT_BREAKPOINT = 520;
 
 export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrder: string[] }) {
+  const { t, tn } = useI18n();
   const [hovered, setHovered] = useState<string | null>(null);
+  const displayName = (optionId: string, name: string) => (optionId === 'EXHAUSTED' ? t('exhausted') : name);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -157,10 +160,10 @@ export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrd
     <div ref={containerRef} className="w-full">
       {nodes.length === 0 ? (
         <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-          {width <= 0 ? ' ' : 'Not enough rounds to visualize yet.'}
+          {width <= 0 ? ' ' : t('notEnoughRounds')}
         </div>
       ) : (
-        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label="Sankey diagram of vote transfers across rounds">
+        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={t('sankeyAria')}>
           <g>
             {links.map((link, i) => {
               const id = `${link.source.id}->${link.target.id}`;
@@ -176,8 +179,8 @@ export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrd
                   className="transition-[stroke-opacity] duration-200"
                 >
                   <title>
-                    {link.source.name} → {link.target.name}: {link.value} vote{link.value === 1 ? '' : 's'}
-                    {link.isTransfer ? ' (transferred)' : ''}
+                    {displayName(link.source.optionId, link.source.name)} → {displayName(link.target.optionId, link.target.name)}: {tn('voteWord', link.value)}
+                    {link.isTransfer ? t('transferred') : ''}
                   </title>
                 </path>
               );
@@ -188,7 +191,7 @@ export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrd
               const color = colorForOption(node.optionId, optionOrder);
               const isDim = hovered !== null && hovered !== node.optionId;
               const labelLeft = node.x0 < width / 2;
-              const label = `${node.name} (${node.value})`;
+              const label = `${displayName(node.optionId, node.name)} (${node.value})`;
               return (
                 <g
                   key={node.id}
@@ -207,7 +210,7 @@ export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrd
                     className="transition-opacity duration-200"
                   >
                     <title>
-                      {node.name} — Round {node.round}: {node.value} vote{node.value === 1 ? '' : 's'}
+                      {displayName(node.optionId, node.name)} — {t('roundN', { n: node.round })}: {tn('voteWord', node.value)}
                     </title>
                   </rect>
                   {isCompact ? (
@@ -280,7 +283,7 @@ export function SankeyChart({ data, optionOrder }: { data: SankeyData; optionOrd
                     opacity={0.45}
                     className="uppercase tracking-wide"
                   >
-                    Round {round}
+                    {t('roundN', { n: round })}
                   </text>
                 );
               })}

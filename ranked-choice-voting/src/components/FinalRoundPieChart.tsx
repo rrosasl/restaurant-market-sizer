@@ -1,4 +1,5 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { useI18n } from '../lib/i18n';
 
 const PALETTE = [
   '#6366f1',
@@ -19,6 +20,7 @@ export interface PieDatum {
 }
 
 export function FinalRoundPieChart({ data }: { data: PieDatum[] }) {
+  useI18n(); // re-render on language change (labels come from data names)
   return (
     <ResponsiveContainer width="100%" height={280}>
       <PieChart>

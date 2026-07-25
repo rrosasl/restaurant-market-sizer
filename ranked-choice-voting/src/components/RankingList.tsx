@@ -1,12 +1,12 @@
 import { Reorder, useDragControls } from 'framer-motion';
+import { useI18n } from '../lib/i18n';
 import type { PollOption } from '../types';
 
 function RankBadge({ index }: { index: number }) {
-  const labels = ['1st', '2nd', '3rd'];
-  const label = labels[index] ?? `${index + 1}th`;
+  const { rank } = useI18n();
   return (
     <span className="flex h-9 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold tracking-wide text-white shadow-sm">
-      {label}
+      {rank(index)}
     </span>
   );
 }
@@ -26,6 +26,7 @@ function RankingRow({
   // hijacks vertical touch gestures, making the page impossible to scroll on
   // phones — the handle gets touch-action:none, the rest of the row scrolls.
   const controls = useDragControls();
+  const { t } = useI18n();
 
   return (
     <Reorder.Item
@@ -37,7 +38,7 @@ function RankingRow({
     >
       <button
         type="button"
-        aria-label={`Drag to move ${option.name}`}
+        aria-label={t('dragAria', { name: option.name })}
         onPointerDown={(e) => {
           e.preventDefault();
           controls.start(e);
@@ -53,7 +54,7 @@ function RankingRow({
       <div className="flex shrink-0 flex-col gap-0.5">
         <button
           type="button"
-          aria-label={`Move ${option.name} up`}
+          aria-label={t('moveUpAria', { name: option.name })}
           disabled={index === 0}
           onClick={() => onMove(option.id, -1)}
           className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -62,7 +63,7 @@ function RankingRow({
         </button>
         <button
           type="button"
-          aria-label={`Move ${option.name} down`}
+          aria-label={t('moveDownAria', { name: option.name })}
           disabled={index === count - 1}
           onClick={() => onMove(option.id, 1)}
           className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25 dark:hover:bg-slate-700 dark:hover:text-slate-200"

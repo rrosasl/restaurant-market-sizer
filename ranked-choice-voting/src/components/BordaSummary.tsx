@@ -1,6 +1,8 @@
+import { useI18n } from '../lib/i18n';
 import type { BordaResult, PollOption } from '../types';
 
 export function BordaSummary({ result, options }: { result: BordaResult; options: PollOption[] }) {
+  const { t } = useI18n();
   const optionName = new Map(options.map((o) => [o.id, o.name]));
   const maxTotal = result.scores[0]?.total ?? 0;
 
@@ -30,14 +32,13 @@ export function BordaSummary({ result, options }: { result: BordaResult; options
               />
             </div>
             <span className="w-16 shrink-0 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-              {score.total} pts
+              {t('pts', { n: score.total })}
             </span>
           </li>
         );
       })}
       <li className="pt-1 text-xs text-slate-400 dark:text-slate-500">
-        Max possible: {result.maxPossible} points (every voter ranking a candidate 1st, out of {result.totalBallots}{' '}
-        ballot{result.totalBallots === 1 ? '' : 's'}).
+        {t('maxPossible', { max: result.maxPossible, n: result.totalBallots, s: result.totalBallots === 1 ? '' : 's' })}
       </li>
     </ul>
   );
