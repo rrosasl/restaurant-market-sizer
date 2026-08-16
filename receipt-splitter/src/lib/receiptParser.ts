@@ -131,6 +131,12 @@ function failureForStatus(status: number, code: string | null): ParseFailure {
       return 'unreadable';
     case 429:
       return 'rate_limited';
+    // A 404 here means the endpoint isn't there at all — hosting deployed
+    // without the function. That is the service being unavailable, not a
+    // mystery, so say so rather than falling through to "something went wrong".
+    case 404:
+    case 405:
+      return 'server';
     default:
       return status >= 500 ? 'server' : 'unknown';
   }

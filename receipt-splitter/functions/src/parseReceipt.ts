@@ -1,19 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { VercelRequest, VercelResponse } from './vercel';
+import type { Request, Response } from 'express';
 
 /**
  * The only thing in this project that talks to the Anthropic API, and the only
  * thing that holds the API key.
  *
  * Several people use this app from their own phones and none of them have an
- * Anthropic key, so the key lives here in an environment variable and the
- * browser never sees it. That makes this endpoint public by URL, so it is
- * guarded by a shared access code, a per-IP rate limit and a request size cap.
+ * Anthropic key, so the key lives server-side and the browser never sees it.
+ * That makes this endpoint public by URL, so it is guarded by a shared access
+ * code, a per-IP rate limit and a request size cap.
  *
  * Nothing is logged or persisted. The image is held in memory for the length of
  * one request and then discarded — no storage, no analytics, no request bodies
  * in the logs.
+ *
+ * The secrets arrive as an argument rather than being read from the environment
+ * here, so this file has no ambient dependency on how it was deployed and can
+ * be exercised directly in a test.
  */
+
+export interface HandlerSecrets {
+  apiKey: string;
+  accessCode: string;
+}
 
 /** Reject anything larger than this, measured on the base64 payload. */
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
@@ -35,8 +44,9 @@ type MediaType = (typeof ACCEPTED_MEDIA_TYPES)[number];
  * it resets on cold start and one instance cannot see its siblings, so it
  * bounds a single instance's traffic rather than a caller's true rate. It
  * raises the cost of casual abuse; the access code is what actually keeps
- * strangers out. Swap this map for a shared store (Upstash, Vercel KV) if a
- * real limit is ever needed — `hitRateLimit` is the only thing to change.
+ * strangers out. Swap this map for a shared store — Firestore is already in the
+ * project — if a real limit is ever needed. `hitRateLimit` is the only thing
+ * that would change.
  */
 const requestLog = new Map<string, number[]>();
 
@@ -70,7 +80,11 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function clientIp(req: VercelRequest): string {
+/**
+ * The caller's address as seen through Hosting's CDN and Cloud Run, both of
+ * which append to `x-forwarded-for`. The first entry is the original client.
+ */
+function clientIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   return (raw?.split(',')[0] ?? req.socket?.remoteAddress ?? 'unknown').trim();
@@ -155,11 +169,15 @@ interface ErrorBody {
     | 'misconfigured';
 }
 
-function fail(res: VercelResponse, status: number, body: ErrorBody) {
+function fail(res: Response, status: number, body: ErrorBody) {
   res.status(status).json(body);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleParseReceipt(
+  req: Request,
+  res: Response,
+  { apiKey, accessCode }: HandlerSecrets,
+): Promise<void> {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
@@ -167,8 +185,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return fail(res, 405, { error: 'Method not allowed', code: 'bad_request' });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const accessCode = process.env.ACCESS_CODE;
   if (!apiKey || !accessCode) {
     // Deployment problem, not a caller problem — say so without detail.
     console.error('parse-receipt: ANTHROPIC_API_KEY or ACCESS_CODE is not set');
@@ -242,7 +258,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // there is exactly one schema check in the system rather than two that can
     // disagree — and nothing here needs to understand the receipt.
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).send(text.text);
+    res.status(200).send(text.text);
+    return;
   } catch (error) {
     // Log the failure shape only. Never the request body, never the image.
     if (error instanceof Anthropic.RateLimitError) {

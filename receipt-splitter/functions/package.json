@@ -1,0 +1,24 @@
+{
+  "name": "receipt-splitter-functions",
+  "private": true,
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "serve": "npm run build && firebase emulators:start --only functions,hosting"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
+    "firebase-functions": "^6.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "uuid": "^11.1.0"
+  }
+}

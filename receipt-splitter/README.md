@@ -1,4 +1,4 @@
-# Dividir la cuenta — Receipt Splitter
+# Split the bill — Receipt Splitter
 
 A mobile-first web app for splitting a restaurant bill among friends. Enter the
 bill (by hand, or by photographing the receipt), tap each person onto the lines
@@ -21,7 +21,7 @@ three ways is €4.67, €4.67 and €4.66 — never three times €4.67, which 
 - Ties break toward the lowest index, so a bill never reshuffles between
   renders.
 
-`npm test` covers this with 47 tests, including the €14.00-over-3 case,
+`npm test` covers this with 55 tests, including the €14.00-over-3 case,
 remainders spread across several lines, and randomised bills asserting that
 per-person totals plus unassigned always equal items plus extras.
 
@@ -35,8 +35,13 @@ npm test         # money and allocation tests
 npm run build    # production build into dist/
 ```
 
-Reading receipts needs the serverless function, which `vite dev` does not run.
-Use `vercel dev` instead if you are working on that path — see below.
+`vite dev` serves the front end only. Reading receipts needs the Cloud
+Function, so to work on that path build and run the emulators instead:
+
+```bash
+npm run build
+cd functions && npm install && npm run serve
+```
 
 ## Reading a receipt
 
@@ -48,8 +53,8 @@ Photographing a receipt is the one thing that needs the network. The flow:
 2. It is downscaled client-side to 1568px on the long edge and re-encoded as
    JPEG at q0.8. Raw phone photos are 4–8 MB; this brings them to 150–400 KB,
    and the model reads no more detail above that resolution anyway.
-3. It goes to `api/parse-receipt.ts`, the only code that holds the API key. That
-   function calls Claude Sonnet with a JSON schema (structured outputs), so the
+3. It goes to `functions/src/parseReceipt.ts`, the only code that holds the API
+   key. It calls Claude Sonnet with a JSON schema (structured outputs), so the
    response cannot come back as prose or markdown.
 4. The client validates the response anyway, field by field, and shows a
    "couldn't read this" state with manual entry rather than crashing on
@@ -79,52 +84,76 @@ The endpoint is public by URL, so it is guarded by three things:
   on cold start and one instance cannot see its siblings, so it bounds a single
   instance rather than a caller's true rate. It raises the cost of casual
   abuse; the access code is what actually keeps strangers out. Making it real
-  means putting the counter in a shared store (Upstash, Vercel KV) —
-  `hitRateLimit` in `api/parse-receipt.ts` is the only function to replace.
+  means putting the counter in a shared store — Firestore is already available
+  in the project. `hitRateLimit` in `functions/src/parseReceipt.ts` is the only
+  function to replace.
 
 Wrong code, rate limit hit, service down, no connection: each shows a specific
 explanation and offers manual entry. The app never fails silently.
 
-## Deploy to Vercel
+## Deploy to Firebase
 
-The front end and the serverless function deploy together from this directory.
+Hosting serves the app at `https://<project-id>.web.app`, publicly, with no
+sign-in. A Cloud Function serves `/api/parse-receipt` behind a Hosting rewrite,
+so the whole thing is one origin and the browser makes no cross-origin request.
 
 ```bash
-npm i -g vercel          # once
+npm i -g firebase-tools     # once
+firebase login              # once
 cd receipt-splitter
-vercel link              # once, to create/attach the project
-vercel --prod
+firebase use --add          # once, pick the project; writes .firebaserc
+
+npm install && npm run build
+cd functions && npm install && cd ..
+firebase deploy
 ```
 
-**Set the project's Root Directory to `receipt-splitter`** when linking — this
-repo also contains an unrelated Python app at its root. Vercel asks during
-`vercel link`, and it can be changed later under Project → Settings → Build and
-Deployment → Root Directory.
+`firebase deploy --only hosting` pushes just the front end, which is the fast
+loop once the function is stable.
 
-`vercel.json` pins the framework preset, the SPA fallback (which deliberately
-excludes `/api`), and the response headers.
+### The billing bit, up front
 
-### Environment variables
+**Hosting is free** on the Spark plan, and the whole manual splitter works
+there — people, items, assignment, totals, history. Deploy today and it is
+live.
 
-Two variables, both set on the Vercel project (Settings → Environment
-Variables), for Production and Preview:
+**Cloud Functions requires the Blaze plan**, which means attaching a billing
+account. Receipt parsing is the only thing that needs it. The free monthly
+allowance covers this app comfortably — a few hundred receipts is far below the
+2M invocation tier — so the realistic bill is the Anthropic API usage, not
+Google's.
 
-| Variable            | What it is                                                                 |
-| ------------------- | -------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | Your Anthropic API key. Only the serverless function ever sees it.          |
-| `ACCESS_CODE`       | A shared password you invent. Users type it once per device.                |
+Until the function is deployed, the camera button reports that the reading
+service is unavailable and offers manual entry. The app is fully usable in that
+state; it just cannot read photos.
 
-Neither is exposed to the browser: they are read server-side inside the
-function, and there is no `VITE_`-prefixed variant of either (Vite only inlines
-`VITE_*` into the bundle). Redeploy after changing them — Vercel reads
-environment variables at build/boot time.
+### The two secrets
 
-To rotate the access code, change `ACCESS_CODE` and redeploy; every device then
-needs the new code re-entered.
+Both live in Secret Manager, not in plain config, so they never appear in the
+deployed source or in logs:
+
+```bash
+firebase functions:secrets:set ANTHROPIC_API_KEY
+firebase functions:secrets:set ACCESS_CODE
+```
+
+| Secret              | What it is                                                        |
+| ------------------- | ----------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key. Only the function ever sees it.            |
+| `ACCESS_CODE`       | A shared password you invent. Users type it once per device.       |
+
+Neither reaches the browser. They are read inside the function at runtime, and
+there is no `VITE_`-prefixed variant of either — Vite only inlines `VITE_*` into
+the bundle, so a secret cannot leak into the front end by accident.
+
+Redeploy the function after changing a secret (`firebase deploy --only
+functions`); running instances hold the value they booted with. To rotate the
+access code, set it again and redeploy — every device then needs the new code
+re-entered.
 
 ## Handing the app to a friend
 
-1. Send them the deployment URL.
+1. Send them the URL — `https://<project-id>.web.app`.
 2. Tell them to open it in their phone's browser and choose **Add to Home
    Screen** (iOS: Share → Add to Home Screen; Android: the install prompt or
    ⋮ → Install app). It then behaves like an app, full screen and offline.
@@ -149,8 +178,10 @@ conversion, no discounts.
 
 ```
 receipt-splitter/
-├── api/
-│   └── parse-receipt.ts    the only code that holds the API key
+├── functions/              Cloud Function, deployed separately
+│   └── src/
+│       ├── index.ts        entry point, declares region and secrets
+│       └── parseReceipt.ts the only code that holds the API key
 ├── public/icons/           app icons for the home screen
 ├── src/
 │   ├── lib/
@@ -165,7 +196,7 @@ receipt-splitter/
 │   ├── state/billReducer.ts  every mutation of the working bill
 │   ├── strings.ts          all user-facing text, es + en
 │   └── types.ts            Bill, Item, Person, Extra, Assignments
-└── vercel.json             framework preset, SPA fallback, headers
+└── firebase.json           hosting, /api rewrite, caching and headers
 ```
 
 ## Screen flow
