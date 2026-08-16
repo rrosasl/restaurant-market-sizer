@@ -14,6 +14,7 @@ interface StartScreenProps {
   onOpen: (bill: Bill) => void;
   onHistoryChange: (history: Bill[]) => void;
   onSettings: () => void;
+  onLangChange: (lang: 'en' | 'es') => void;
 }
 
 export function StartScreen({
@@ -24,6 +25,7 @@ export function StartScreen({
   onOpen,
   onHistoryChange,
   onSettings,
+  onLangChange,
 }: StartScreenProps) {
   const { t, lang } = useUi();
 
@@ -40,6 +42,32 @@ export function StartScreen({
       settingsLabel={t('settings')}
     >
       <div className="space-y-6">
+        {/*
+          The language switch lives on the first screen, not behind the gear:
+          someone handed this link at a dinner table has to be able to flip it
+          before understanding anything else on the page.
+        */}
+        <div className="flex justify-end">
+          <div
+            role="group"
+            aria-label={t('settingsLanguage')}
+            className="inline-flex rounded-full border border-slate-200 bg-white p-0.5 shadow-sm"
+          >
+            {(['en', 'es'] as const).map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => onLangChange(code)}
+                aria-pressed={lang === code}
+                className={`min-h-9 rounded-full px-3.5 text-sm font-semibold transition ${
+                  lang === code ? 'bg-accent-600 text-white' : 'text-slate-500'
+                }`}
+              >
+                {code === 'en' ? 'English' : 'Español'}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"

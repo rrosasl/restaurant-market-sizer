@@ -122,6 +122,7 @@ export default function App() {
           onOpen={openBill}
           onHistoryChange={setHistory}
           onSettings={goSettings}
+          onLangChange={(lang) => setSettings((s) => ({ ...s, lang }))}
         />
       )}
 

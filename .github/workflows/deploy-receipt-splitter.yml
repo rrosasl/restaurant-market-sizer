@@ -1,0 +1,57 @@
+# Deploys the receipt splitter to Firebase Hosting on every push that touches
+# it. One-time setup, all in the browser, no CLI:
+#
+#   1. console.firebase.google.com -> Add project (Hosting is free, no billing).
+#   2. Project settings -> Service accounts -> Generate new private key.
+#   3. This repo on GitHub -> Settings -> Secrets and variables -> Actions:
+#        - New secret   FIREBASE_SERVICE_ACCOUNT  = the downloaded JSON, pasted whole
+#        - New variable FIREBASE_PROJECT_ID       = the Firebase project id
+#   4. Push (or run this workflow manually). The app is then live at
+#      https://<project-id>.web.app for anyone with the link.
+#
+# This deploys Hosting only — the whole manual splitter. The receipt-photo
+# Cloud Function needs the Blaze plan and is deployed separately when wanted:
+# `firebase deploy --only functions` from receipt-splitter/.
+name: Deploy receipt splitter
+
+on:
+  push:
+    branches: [main, claude/receipt-splitter-kickoff-drsdd9]
+    paths: ['receipt-splitter/**', '.github/workflows/deploy-receipt-splitter.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: receipt-splitter
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: receipt-splitter/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test money and allocation logic
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        # Skipped (not failed) until the two setup values exist, so CI stays
+        # green as a build-and-test check in the meantime.
+        if: vars.FIREBASE_PROJECT_ID != ''
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
+          entryPoint: receipt-splitter

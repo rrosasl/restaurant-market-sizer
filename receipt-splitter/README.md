@@ -4,8 +4,9 @@ A mobile-first web app for splitting a restaurant bill among friends. Enter the
 bill (by hand, or by photographing the receipt), tap each person onto the lines
 they had, and get per-person totals that add up to the bill exactly.
 
-English by default, Spanish toggle in settings. Installs to the home screen and
-works offline for everything except reading a receipt photo.
+English by default, with an English/Español switch right on the start screen.
+Installs to the home screen and works offline for everything except reading a
+receipt photo.
 
 ## Money, exactly
 
@@ -93,9 +94,29 @@ explanation and offers manual entry. The app never fails silently.
 
 ## Deploy to Firebase
 
-Hosting serves the app at `https://<project-id>.web.app`, publicly, with no
-sign-in. A Cloud Function serves `/api/parse-receipt` behind a Hosting rewrite,
-so the whole thing is one origin and the browser makes no cross-origin request.
+Hosting serves the app at `https://<project-id>.web.app` — public, no sign-in,
+usable by anyone with the link. A Cloud Function serves `/api/parse-receipt`
+behind a Hosting rewrite, so the whole thing is one origin.
+
+### Easiest path: push-to-deploy, no CLI
+
+A GitHub Actions workflow
+(`.github/workflows/deploy-receipt-splitter.yml`) builds, tests and deploys on
+every push. One-time setup, entirely in the browser:
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add
+   project** (Hosting is free; no billing account needed).
+2. Project settings → **Service accounts** → **Generate new private key**.
+3. On the GitHub repo: Settings → Secrets and variables → Actions →
+   - new **secret** `FIREBASE_SERVICE_ACCOUNT` — paste the downloaded JSON
+   - new **variable** `FIREBASE_PROJECT_ID` — the project id from step 1
+4. Push, or run the workflow from the Actions tab. The app is live at
+   `https://<project-id>.web.app`.
+
+Until those two values exist the workflow still runs build and tests and skips
+the deploy, so it doubles as CI from day one.
+
+### Or from a terminal
 
 ```bash
 npm i -g firebase-tools     # once
@@ -104,12 +125,12 @@ cd receipt-splitter
 firebase use --add          # once, pick the project; writes .firebaserc
 
 npm install && npm run build
-cd functions && npm install && cd ..
-firebase deploy
+firebase deploy --only hosting
 ```
 
-`firebase deploy --only hosting` pushes just the front end, which is the fast
-loop once the function is stable.
+Add the Cloud Function (receipt photos) later with
+`cd functions && npm install && cd .. && firebase deploy --only functions` —
+this is the one part that needs the Blaze plan.
 
 ### The billing bit, up front
 
