@@ -1,0 +1,110 @@
+@import 'tailwindcss';
+
+/*
+ * Visual language: light slate ground, white rounded cards with soft shadows,
+ * one saturated accent used only for assigned pills, primary actions and
+ * totals. Tap targets are deliberately generous — this app gets used
+ * one-handed, standing at a table, in bad light.
+ */
+@theme {
+  --color-accent-50: #eef2ff;
+  --color-accent-100: #e0e7ff;
+  --color-accent-200: #c7d2fe;
+  --color-accent-500: #6366f1;
+  --color-accent-600: #4f46e5;
+  --color-accent-700: #4338ca;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 12px rgb(15 23 42 / 0.06);
+  --shadow-panel: 0 -2px 16px rgb(15 23 42 / 0.1);
+}
+
+@layer base {
+  html {
+    /* Stop iOS Safari from zooming when a numeric field takes focus. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    min-height: 100dvh;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Anything under 16px makes iOS Safari zoom the viewport on focus. */
+  input,
+  select {
+    @apply text-base;
+  }
+}
+
+/*
+ * These are `@utility` rather than plain classes in a layer so that Tailwind
+ * registers them as real utilities — which is what lets `.btn-primary`
+ * compose `btn` through `@apply`.
+ */
+@utility card {
+  @apply rounded-2xl bg-white;
+  box-shadow: var(--shadow-card);
+}
+
+@utility field {
+  @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900
+    outline-none transition placeholder:text-slate-400
+    focus:border-accent-500 focus:ring-2 focus:ring-accent-100;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-base
+    font-semibold transition active:scale-[0.98] disabled:pointer-events-none
+    disabled:opacity-40;
+}
+
+@utility btn-primary {
+  @apply btn bg-accent-600 text-white shadow-sm;
+}
+
+@utility btn-secondary {
+  @apply btn border border-slate-200 bg-white text-slate-700;
+}
+
+@utility btn-ghost {
+  @apply btn text-slate-600;
+}
+
+@utility btn-danger {
+  @apply btn border border-red-200 bg-white text-red-600;
+}
+
+/* Hover states only where a pointer actually exists; on a touch screen they
+   stick after a tap and make buttons look permanently pressed. */
+@media (hover: hover) {
+  .btn-primary:hover {
+    @apply bg-accent-700;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-slate-50;
+  }
+
+  .btn-ghost:hover {
+    @apply bg-slate-200/60;
+  }
+
+  .btn-danger:hover {
+    @apply bg-red-50;
+  }
+}
+
+/* Respect a reduced-motion preference; the only motion here is incidental. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
