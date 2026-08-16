@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dividir la cuenta">
+  <rect width="512" height="512" rx="112" fill="#4f46e5"/>
+  <!-- Receipt with a torn foot, split down the middle by the divider line. -->
+  <path fill="#ffffff"
+        d="M136 108a12 12 0 0 1 12-12h216a12 12 0 0 1 12 12v292a8 8 0 0 1-11.6 7.2L336 391l-28.4 16.2a8 8 0 0 1-7.9 0L271 391l-28.6 16.2a8 8 0 0 1-7.9 0L206 391l-28.4 16.2a8 8 0 0 1-7.9 0L141 391l-16.6 9.4A8 8 0 0 1 136 400z"/>
+  <g fill="#4f46e5">
+    <rect x="172" y="156" width="104" height="22" rx="11"/>
+    <rect x="172" y="212" width="72" height="20" rx="10"/>
+    <rect x="292" y="212" width="48" height="20" rx="10"/>
+    <rect x="172" y="264" width="88" height="20" rx="10"/>
+    <rect x="292" y="264" width="48" height="20" rx="10"/>
+  </g>
+  <!-- The split: two shares, one filled, one outlined. -->
+  <circle cx="212" cy="336" r="30" fill="#4f46e5"/>
+  <circle cx="300" cy="336" r="30" fill="none" stroke="#4f46e5" stroke-width="10"/>
+</svg>
