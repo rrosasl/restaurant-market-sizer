@@ -1,0 +1,46 @@
+name: Deploy voting app
+
+# Builds the ranked-choice voting app and deploys the site + Firestore
+# security rules to Firebase. Runs on GitHub's runners (which have open
+# network access), authenticating with a service-account key stored as the
+# repo secret FIREBASE_SERVICE_ACCOUNT — the key never leaves GitHub.
+on:
+  push:
+    branches:
+      - main
+      - claude/ranked-choice-voting-app-9x7wdu
+    paths:
+      - 'ranked-choice-voting/**'
+      - '.github/workflows/deploy-voting.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranked-choice-voting
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ranked-choice-voting/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Write service-account key
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy hosting + Firestore rules
+        run: npx firebase deploy --only hosting,firestore:rules --project rnkedchoice --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
