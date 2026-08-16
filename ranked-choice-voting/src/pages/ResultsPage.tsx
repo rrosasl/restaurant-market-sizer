@@ -11,6 +11,7 @@ import { FinalRoundPieChart } from '../components/FinalRoundPieChart';
 import { RoundSummary } from '../components/RoundSummary';
 import { BordaChart } from '../components/BordaChart';
 import { BordaSummary } from '../components/BordaSummary';
+import { VoterBallots } from '../components/VoterBallots';
 
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
@@ -138,9 +139,6 @@ export function ResultsPage() {
           max: bordaResult.maxPossible,
         });
 
-  const namedVoters = ballots.filter((b) => b.voterName).map((b) => b.voterName as string);
-  const anonymousCount = ballots.length - namedVoters.length;
-
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {backLink}
@@ -217,21 +215,7 @@ export function ResultsPage() {
       )}
 
       <Card title={t('whoVoted')} subtitle={t('whoVotedSub')}>
-        <div className="flex flex-wrap gap-1.5">
-          {namedVoters.map((name, i) => (
-            <span
-              key={`${name}-${i}`}
-              className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              {name}
-            </span>
-          ))}
-          {anonymousCount > 0 && (
-            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-400 ring-1 ring-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:ring-slate-700">
-              {t('anonymous', { n: anonymousCount })}
-            </span>
-          )}
-        </div>
+        <VoterBallots ballots={ballots} options={poll.options} />
       </Card>
     </div>
   );

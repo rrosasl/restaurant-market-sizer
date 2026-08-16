@@ -136,8 +136,8 @@ const en = {
   cardStandingsTitle: 'Final Standings',
   cardStandingsSub: 'Every candidate, ranked by total points',
   whoVoted: 'Who voted',
-  whoVotedSub: 'Names are optional — voters chose whether to share theirs',
-  anonymous: '+{n} anonymous',
+  whoVotedSub: 'Tap a name to see how they ranked every option. Names were optional.',
+  anonymousVoter: 'Anonymous',
   votes: 'votes',
 
   // Round summary
@@ -298,8 +298,8 @@ const es: typeof en = {
   cardStandingsTitle: 'Clasificación final',
   cardStandingsSub: 'Todos los candidatos, ordenados por puntos totales',
   whoVoted: 'Quiénes votaron',
-  whoVotedSub: 'Los nombres son opcionales — cada quien decidió si compartir el suyo',
-  anonymous: '+{n} anónimos',
+  whoVotedSub: 'Toca un nombre para ver cómo ordenó todas las opciones. Dar el nombre era opcional.',
+  anonymousVoter: 'Anónimo',
   votes: 'votos',
 
   roundN: 'Ronda {n}',
