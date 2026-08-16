@@ -38,6 +38,53 @@ npm run build    # production build into dist/
 Reading receipts needs the serverless function, which `vite dev` does not run.
 Use `vercel dev` instead if you are working on that path — see below.
 
+## Reading a receipt
+
+Photographing a receipt is the one thing that needs the network. The flow:
+
+1. The photo is taken with a plain `<input type="file" capture="environment">` —
+   camera or gallery through one control, no `getUserMedia` and no permission
+   prompts.
+2. It is downscaled client-side to 1568px on the long edge and re-encoded as
+   JPEG at q0.8. Raw phone photos are 4–8 MB; this brings them to 150–400 KB,
+   and the model reads no more detail above that resolution anyway.
+3. It goes to `api/parse-receipt.ts`, the only code that holds the API key. That
+   function calls Claude Sonnet with a JSON schema (structured outputs), so the
+   response cannot come back as prose or markdown.
+4. The client validates the response anyway, field by field, and shows a
+   "couldn't read this" state with manual entry rather than crashing on
+   anything unexpected.
+
+The prompt does not assume English or any particular layout — receipts in
+Italian, Spanish, German and French all read correctly, and item names come back
+in their original language.
+
+**Always check the lines afterwards.** OCR on faded thermal paper gets things
+wrong, which is why the review screen makes every field editable and shows a
+running comparison against the printed total.
+
+Nothing about the image is stored or logged anywhere. The function holds it in
+memory for one request and discards it; the error log records failure types
+only, never request bodies.
+
+### Abuse protection, honestly described
+
+The endpoint is public by URL, so it is guarded by three things:
+
+- **A shared access code**, checked server-side against `ACCESS_CODE` with a
+  constant-time comparison. Users enter it once per device.
+- **A request size cap** rejecting base64 payloads over 2 MB.
+- **A per-IP rate limit** of 20 receipts/hour — **best-effort only.** It is an
+  in-memory counter inside a stateless, horizontally-scaled function: it resets
+  on cold start and one instance cannot see its siblings, so it bounds a single
+  instance rather than a caller's true rate. It raises the cost of casual
+  abuse; the access code is what actually keeps strangers out. Making it real
+  means putting the counter in a shared store (Upstash, Vercel KV) —
+  `hitRateLimit` in `api/parse-receipt.ts` is the only function to replace.
+
+Wrong code, rate limit hit, service down, no connection: each shows a specific
+explanation and offers manual entry. The app never fails silently.
+
 ## Deploy to Vercel
 
 The front end and the serverless function deploy together from this directory.
@@ -102,18 +149,34 @@ conversion, no discounts.
 
 ```
 receipt-splitter/
-├── api/                    serverless function (the only thing with the API key)
+├── api/
+│   └── parse-receipt.ts    the only code that holds the API key
 ├── public/icons/           app icons for the home screen
 ├── src/
 │   ├── lib/
 │   │   ├── allocate.ts     largest-remainder splitting
 │   │   ├── money.ts        cents <-> text, the only crossing point
 │   │   ├── totals.ts       per-person totals, extras, reconciliation
+│   │   ├── receiptParser.ts  the whole parsing capability, one interface
+│   │   ├── imageResize.ts  downscale + JPEG encode before upload
 │   │   ├── exportText.ts   plain-text export for the group chat
 │   │   └── storage.ts      localStorage: bills, history, roster, settings
-│   ├── screens/            start, people, items, assign, totals, settings
+│   ├── screens/            start, capture, people, items, assign, totals, settings
 │   ├── state/billReducer.ts  every mutation of the working bill
 │   ├── strings.ts          all user-facing text, es + en
 │   └── types.ts            Bill, Item, Person, Extra, Assignments
 └── vercel.json             framework preset, SPA fallback, headers
 ```
+
+## Screen flow
+
+```
+Start ─┬─ Capture ──┐
+       │            ├─→ Items (review + reconcile) ─→ People ─┐
+       └─ People ───┴─→ Items ─────────────────────────────────┴─→ Assign ─→ Totals
+       │
+       └─ History (open a past bill straight into Assign)
+```
+
+Both entry paths converge on Assign: entering by hand adds people first, a photo
+produces the lines first. Whichever is missing is asked for next.

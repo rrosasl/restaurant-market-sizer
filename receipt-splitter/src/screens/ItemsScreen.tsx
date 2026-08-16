@@ -35,7 +35,10 @@ export function ItemsScreen({ bill, dispatch, onBack, onSettings, go }: ScreenPr
           type="button"
           className="btn-primary w-full"
           disabled={bill.items.length === 0}
-          onClick={() => go('assign')}
+          // The two entry paths converge here. Entering by hand means people
+          // were added first and assignment is next; arriving from a photo
+          // means the lines exist but nobody does yet.
+          onClick={() => go(bill.people.length === 0 ? 'people' : 'assign')}
         >
           {t('next')}
         </button>

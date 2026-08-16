@@ -22,6 +22,7 @@ import { ItemsScreen } from './screens/ItemsScreen';
 import { AssignScreen } from './screens/AssignScreen';
 import { TotalsScreen } from './screens/TotalsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { CaptureScreen } from './screens/CaptureScreen';
 
 export type Screen =
   | 'start'
@@ -121,6 +122,18 @@ export default function App() {
           onOpen={openBill}
           onHistoryChange={setHistory}
           onSettings={goSettings}
+        />
+      )}
+
+      {screen === 'capture' && (
+        <CaptureScreen
+          {...screenProps}
+          accessCode={settings.accessCode}
+          onManualInstead={() => setScreen('people')}
+          onNeedCode={goSettings}
+          // A parsed receipt has lines but no people yet, and the lines are the
+          // part that needs checking while the paper is still in hand.
+          onParsed={() => setScreen('items')}
         />
       )}
 

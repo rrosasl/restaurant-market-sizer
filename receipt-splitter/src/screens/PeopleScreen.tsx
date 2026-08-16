@@ -42,7 +42,9 @@ export function PeopleScreen({ bill, dispatch, onBack, onSettings, go, roster }:
           type="button"
           className="btn-primary w-full"
           disabled={bill.people.length === 0}
-          onClick={() => go('items')}
+          // Lines already read from a photo mean the next step is assigning
+          // them, not typing them in again.
+          onClick={() => go(bill.items.length === 0 ? 'items' : 'assign')}
         >
           {t('next')}
         </button>
