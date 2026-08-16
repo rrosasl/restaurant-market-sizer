@@ -31,7 +31,7 @@ export function SettingsScreen({
             {t('settingsLanguage')}
           </h2>
           <div className="inline-flex w-full rounded-xl bg-slate-100 p-1">
-            {(['es', 'en'] as const).map((lang: Lang) => (
+            {(['en', 'es'] as const).map((lang: Lang) => (
               <button
                 key={lang}
                 type="button"

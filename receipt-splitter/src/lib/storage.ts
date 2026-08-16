@@ -24,7 +24,7 @@ export interface Settings {
   accessCode: string;
 }
 
-const DEFAULT_SETTINGS: Settings = { lang: 'es', accessCode: '' };
+const DEFAULT_SETTINGS: Settings = { lang: 'en', accessCode: '' };
 
 function read<T>(key: string, fallback: T, validate: (raw: unknown) => T | null): T {
   try {
@@ -215,7 +215,7 @@ export function loadSettings(): Settings {
   return read<Settings>(KEYS.settings, DEFAULT_SETTINGS, (raw) => {
     if (!isRecord(raw)) return null;
     return {
-      lang: raw.lang === 'en' ? 'en' : 'es',
+      lang: raw.lang === 'es' ? 'es' : 'en',
       accessCode: typeof raw.accessCode === 'string' ? raw.accessCode : '',
     };
   });

@@ -4,7 +4,7 @@ A mobile-first web app for splitting a restaurant bill among friends. Enter the
 bill (by hand, or by photographing the receipt), tap each person onto the lines
 they had, and get per-person totals that add up to the bill exactly.
 
-Spanish by default, English toggle in settings. Installs to the home screen and
+English by default, Spanish toggle in settings. Installs to the home screen and
 works offline for everything except reading a receipt photo.
 
 ## Money, exactly

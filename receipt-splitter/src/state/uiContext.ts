@@ -16,8 +16,8 @@ export interface UiContextValue {
  * context. The bill itself deliberately does not — mutations stay explicit.
  */
 export const UiContext = createContext<UiContextValue>({
-  lang: 'es',
-  t: translatorFor('es'),
+  lang: 'en',
+  t: translatorFor('en'),
   currency: 'EUR',
   fmt: (cents) => String(cents),
 });

@@ -1,9 +1,9 @@
 /**
  * Every user-facing string in the app, in both locales.
  *
- * Two languages, no i18n library: `en` is typed against `es`, so adding a
- * Spanish key without its English twin is a compile error. Spanish is the
- * default; the toggle lives in settings and persists per device.
+ * Two languages, no i18n library: the two tables are typed against each other,
+ * so adding a key to one without its twin in the other is a compile error.
+ * English is the default; the toggle lives in settings and persists per device.
  */
 
 export type Lang = 'es' | 'en';
