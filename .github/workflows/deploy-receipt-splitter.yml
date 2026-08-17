@@ -3,11 +3,14 @@
 #
 #   1. console.firebase.google.com -> Add project (Hosting is free, no billing).
 #   2. Project settings -> Service accounts -> Generate new private key.
-#   3. This repo on GitHub -> Settings -> Secrets and variables -> Actions:
-#        - New secret   FIREBASE_SERVICE_ACCOUNT  = the downloaded JSON, pasted whole
-#        - New variable FIREBASE_PROJECT_ID       = the Firebase project id
+#   3. This repo on GitHub -> Settings -> Secrets and variables -> Actions ->
+#      New repository secret, named BILL_SPLITTER, containing the whole
+#      downloaded JSON file.
 #   4. Push (or run this workflow manually). The app is then live at
 #      https://<project-id>.web.app for anyone with the link.
+#
+# There is deliberately nothing else to configure: the project id is read out
+# of the service-account JSON in step 3.
 #
 # This deploys Hosting only — the whole manual splitter. The receipt-photo
 # Cloud Function needs the Blaze plan and is deployed separately when wanted:
@@ -44,14 +47,42 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Resolve the Firebase project
+        id: firebase
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.BILL_SPLITTER }}
+        # The service-account JSON already names its own project, so the
+        # project id is read from the secret rather than configured a second
+        # time. One value to set up, and no way for the two to disagree.
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "No BILL_SPLITTER secret set — skipping deploy. Build and tests still ran."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          project_id="$(printf '%s' "$SERVICE_ACCOUNT" |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["project_id"])' 2>/dev/null)" || {
+            echo "::error::BILL_SPLITTER is not valid service-account JSON with a project_id. Paste the whole downloaded file, including the outer { and }."
+            exit 1
+          }
+          echo "Deploying to Firebase project: $project_id"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Firebase Hosting
-        # Skipped (not failed) until the two setup values exist, so CI stays
-        # green as a build-and-test check in the meantime.
-        if: vars.FIREBASE_PROJECT_ID != ''
+        # Skipped (not failed) when the secret is absent, so this workflow
+        # stays useful as a plain build-and-test check.
+        if: steps.firebase.outputs.ready == 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          firebaseServiceAccount: ${{ secrets.BILL_SPLITTER }}
+          projectId: ${{ steps.firebase.outputs.project_id }}
           channelId: live
           entryPoint: receipt-splitter
+
+      - name: Where it landed
+        if: steps.firebase.outputs.ready == 'true'
+        run: |
+          echo "### App deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://${{ steps.firebase.outputs.project_id }}.web.app" >> "$GITHUB_STEP_SUMMARY"

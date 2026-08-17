@@ -107,14 +107,16 @@ every push. One-time setup, entirely in the browser:
 1. [console.firebase.google.com](https://console.firebase.google.com) → **Add
    project** (Hosting is free; no billing account needed).
 2. Project settings → **Service accounts** → **Generate new private key**.
-3. On the GitHub repo: Settings → Secrets and variables → Actions →
-   - new **secret** `FIREBASE_SERVICE_ACCOUNT` — paste the downloaded JSON
-   - new **variable** `FIREBASE_PROJECT_ID` — the project id from step 1
+   A JSON file downloads.
+3. On the GitHub repo: Settings → Secrets and variables → Actions → **New
+   repository secret**, named `BILL_SPLITTER`, containing the whole JSON file.
 4. Push, or run the workflow from the Actions tab. The app is live at
-   `https://<project-id>.web.app`.
+   `https://<project-id>.web.app`, and the run summary prints the URL.
 
-Until those two values exist the workflow still runs build and tests and skips
-the deploy, so it doubles as CI from day one.
+That secret is the only thing to configure — the project id is read out of the
+JSON, so there is no second value to keep in sync. Until the secret exists the
+workflow still runs build and tests and skips the deploy, so it doubles as CI
+from day one.
 
 ### Or from a terminal
 
